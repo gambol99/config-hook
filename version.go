@@ -14,4 +14,3 @@ limitations under the License.
 package main
 
 const VERSION = "0.0.1"
-const AUTHOR = "Rohith <gambol99@gmail.com>"

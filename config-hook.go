@@ -19,6 +19,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gambol99/config-hook/config"
 	"github.com/gambol99/config-hook/hook"
 	"github.com/golang/glog"
 )
@@ -27,7 +28,7 @@ func main() {
 	/* step: parse the command line options */
 	flag.Parse()
 	/* step: print the banner */
-	glog.Infof("Starting the Config Hook Service, version: %s (author: %s)", VERSION, AUTHOR)
+	glog.Infof("Starting the Config Hook Service, version: %s (author: %s)", VERSION, config.AUTHOR)
 	/* step: we create the hook service and wait */
 	if service, err := hook.NewConfigHookService(); err != nil {
 		glog.Errorf("Failed to create the hook service, error: %s", err)
@@ -38,6 +39,7 @@ func main() {
 		signal.Notify(signalChannel, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 		/* step: wait on the signal */
 		<-signalChannel
+		glog.Infof("Shutting down the %s", config.DEFAULT_NAME)
 		/* step: shutdown the service */
 		service.Close()
 	}

@@ -15,6 +15,9 @@ package store
 
 import (
 	"errors"
+	"net/url"
+
+	"github.com/golang/glog"
 )
 
 const VERBOSE_LEVEL = 5
@@ -42,6 +45,25 @@ var (
 )
 
 func NewStore(location string) (Store, error) {
+	if location == "" {
+		glog.Errorf("Failed to create a store agent, you have not specified the location")
+		return nil, errors.New("You have not specific a location for the store")
+	}
+	glog.Infof("Creating a new store agent, location: %s", location)
 
-	return nil, nil
+	/* step: parse the location into a url */
+	if uri, err := url.Parse(location); err != nil {
+		glog.Errorf("Failed to create store agent on location: %s, error: %s", location, err)
+		return nil, err
+	} else {
+		switch uri.Scheme {
+		case "etcd":
+			if agent, err := NewEtcdStoreClient(uri); err != nil {
+				glog.Errorf("Failed to create the Etcd Store agent, error: %s", err)
+			} else {
+				return agent, nil
+			}
+		}
+		return nil, errors.New("Invalid location specified, the agent provider is not supported")
+	}
 }

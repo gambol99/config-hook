@@ -21,6 +21,8 @@ const (
 	DEFAULT_RUNTIME_PREFIX = "_HOOK_"
 	DEFAULT_DOCKER_SOCKET  = "/var/run/docker.sock"
 	DEFAULT_STORE_URL      = "etcd://localhost:4001"
+	AUTHOR                 = "Rohith <gambol99@gmail.com>"
+	DEFAULT_NAME           = "Config Hook Service"
 )
 
 /* the configuration options for the service */

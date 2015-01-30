@@ -38,7 +38,7 @@ const (
 	HOOK_CONFIG          = "CONFIG_"
 	HOOK_EXEC_ONETIME    = "EXECO_"
 	HOOK_EXEC            = "EXEC_"
-	HOOK_REGEX           = "(FILE|CONFIG|EXECO|EXEC)_)"
+	HOOK_REGEX           = "(FILE|CONFIG|EXECO|EXEC)_"
 )
 
 type ConfigHook struct {
@@ -60,7 +60,7 @@ func NewConfigHookService() (ConfigHookService, error) {
 		service.store = store
 		/* step: create a docker client */
 		glog.Infof("Connecting to the docker service via: %s", config.Options.Docker_Socket)
-		docker, err := dockerapi.NewClient(config.Options.Docker_Socket)
+		docker, err := dockerapi.NewClient("unix://" + config.Options.Docker_Socket)
 		if err != nil {
 			glog.Errorf("Failed to connect to the docker service via docker, error: %s", err)
 			return nil, err
@@ -73,7 +73,11 @@ func NewConfigHookService() (ConfigHookService, error) {
 		}
 
 	}
-	return nil, nil
+	return service, nil
+}
+
+func (r *ConfigHook) Close() {
+
 }
 
 func (r *ConfigHook) ProcessEvents() error {
@@ -99,20 +103,21 @@ func (r *ConfigHook) ProcessEvents() error {
 
 	/* step: create the go-routine and process docker events / shutdown */
 	go func() {
-		defer close(events_channel)
-		select {
-		case event := <-events_channel:
-			glog.V(4).Infof("Received docker event status: %s, id: %s", event.Status, event.ID)
-			switch event.Status {
-			case DOCKER_EVENT_START:
-				go r.ProcessContainerCreation(event.ID)
-			case DOCKER_EVENT_DESTROY, DOCKER_EVENT_DIE:
-				go r.ProcessContainerDestruction(event.ID)
+		for {
+			select {
+			case event := <-events_channel:
+				glog.V(4).Infof("Received docker event status: %s, id: %s", event.Status, event.ID)
+				switch event.Status {
+				case DOCKER_EVENT_START:
+					go r.ProcessContainerCreation(event.ID)
+				case DOCKER_EVENT_DESTROY, DOCKER_EVENT_DIE:
+					go r.ProcessContainerDestruction(event.ID)
+				}
+			case <-r.shutdown_channel:
+				glog.Infof("Config Hook Service recieved a shutdown signal")
+				r.store.Close()
+				return
 			}
-		case <-r.shutdown_channel:
-			glog.Infof("Config Hook Service recieved a shutdown signal")
-			r.store.Close()
-			return
 		}
 	}()
 	return nil
@@ -135,6 +140,8 @@ func (r *ConfigHook) HasConfig(containerId string) (map[string]string, bool, err
 	glog.V(5).Infof("Checking the container: %s for any config hook references", containerId)
 	/* step: get the container */
 	prefix := config.Options.Runtime_Prefix
+	regex := fmt.Sprintf("^%s%s", prefix, HOOK_REGEX)
+	glog.V(20).Infof("HasConfig() prefix: %s, regex: %s", prefix, regex)
 
 	if container, err := r.docker.InspectContainer(containerId); err != nil {
 		glog.Errorf("Failed to inspect the container: %s, error: %s", containerId, err)
@@ -149,15 +156,18 @@ func (r *ConfigHook) HasConfig(containerId string) (map[string]string, bool, err
 			found := false
 			/* step: iterate the environment vars and look for hooks */
 			for name, value := range environment {
+				glog.V(20).Infof("HasConfig() checking key: %s, value: %s", name, value)
 				/* check: does it start with the prefix? */
 				if strings.HasPrefix(name, prefix) {
 					/* check: does the left over start with a hook type? */
-					if found, _ := regexp.MatchString(name, fmt.Sprintf("^%s%s", prefix, HOOK_REGEX)); found {
+					if matched, _ := regexp.MatchString(regex, name); matched {
+						glog.V(20).Infof("HasConfig() found matching regex key: %s, value: %s", name, value)
 						list[name] = value
 						found = true
 					}
 				}
 			}
+			glog.V(20).Infof("HasConfig() list: %v, found: %s", list, found)
 			return list, found, nil
 		}
 	}
