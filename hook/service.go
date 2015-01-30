@@ -131,12 +131,6 @@ func (r *ConfigHook) ContainerEnvironment(variables []string) (map[string]string
 	return environment, nil
 }
 
-/*
-	_HOOK_[FILE_]NAME=
-	_HOOK_[CONFIG_]NAME=
-	_HOOK_[EXEC_ONETIME_]NAME=
-	_HOOK_[EXEC_]NAME=
-*/
 func (r *ConfigHook) HasConfig(containerId string) (map[string]string, bool, error) {
 	glog.V(5).Infof("Checking the container: %s for any config hook references", containerId)
 	/* step: get the container */
