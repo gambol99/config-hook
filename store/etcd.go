@@ -39,7 +39,7 @@ type EtcdStoreClient struct {
 /* etcd options for TLS support */
 var EtcdOptions struct {
 	cert_file, key_file, cacert_file string
-	}
+}
 
 func init() {
 	flag.StringVar(&EtcdOptions.cert_file, "etcd-cert", "", "the etcd certificate file (optional)")
@@ -61,9 +61,9 @@ func NewEtcdStoreClient(location *url.URL) (Store, error) {
 
 	/* step: create the etcd client */
 	if EtcdOptions.cacert_file != "" {
-		client, err := etcd.NewTLSClient(store.hosts, EtcdOptions.cert_file, EtcdOptions.key_file, EtcdOptions.cacert_file )
+		client, err := etcd.NewTLSClient(store.hosts, EtcdOptions.cert_file, EtcdOptions.key_file, EtcdOptions.cacert_file)
 		if err != nil {
-			glog.Errorf("Failed to create a TLS connection to etcd: %s, error: %s", *location, err )
+			glog.Errorf("Failed to create a TLS connection to etcd: %s, error: %s", *location, err)
 			return nil, err
 		}
 		store.client = client
@@ -74,7 +74,7 @@ func NewEtcdStoreClient(location *url.URL) (Store, error) {
 	return store, nil
 }
 
-func (r EtcdStoreClient) ParseHostsURL(location *url.URL) ([]string) {
+func (r EtcdStoreClient) ParseHostsURL(location *url.URL) []string {
 	hosts := make([]string, 0)
 	/* step: determine the protocol */
 	protocol := "http"
@@ -199,5 +199,3 @@ func (r *EtcdStoreClient) CreateNode(response *etcd.Node) *Node {
 	}
 	return node
 }
-
-

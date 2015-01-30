@@ -14,9 +14,9 @@ limitations under the License.
 package hook
 
 import (
-	"strings"
-	"regexp"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/gambol99/config-hook/config"
 	"github.com/gambol99/config-hook/store"
@@ -68,7 +68,7 @@ func NewConfigHookService() (ConfigHookService, error) {
 		service.docker = docker
 		/* step: kick off the processing of events */
 		if err := service.ProcessEvents(); err != nil {
-			glog.Errorf("Failed to start processing events in the Hook Service, error: %s", err )
+			glog.Errorf("Failed to start processing events in the Hook Service, error: %s", err)
 			return nil, err
 		}
 
@@ -101,15 +101,15 @@ func (r *ConfigHook) ProcessEvents() error {
 	go func() {
 		defer close(events_channel)
 		select {
-		case event := <- events_channel:
+		case event := <-events_channel:
 			glog.V(4).Infof("Received docker event status: %s, id: %s", event.Status, event.ID)
 			switch event.Status {
 			case DOCKER_EVENT_START:
 				go r.ProcessContainerCreation(event.ID)
-			case DOCKER_EVENT_DESTROY,DOCKER_EVENT_DIE:
+			case DOCKER_EVENT_DESTROY, DOCKER_EVENT_DIE:
 				go r.ProcessContainerDestruction(event.ID)
 			}
-		case <- r.shutdown_channel:
+		case <-r.shutdown_channel:
 			glog.Infof("Config Hook Service recieved a shutdown signal")
 			r.store.Close()
 			return
@@ -137,7 +137,7 @@ func (r *ConfigHook) HasConfig(containerId string) (map[string]string, bool, err
 	prefix := config.Options.Runtime_Prefix
 
 	if container, err := r.docker.InspectContainer(containerId); err != nil {
-		glog.Errorf("Failed to inspect the container: %s, error: %s", containerId, err )
+		glog.Errorf("Failed to inspect the container: %s, error: %s", containerId, err)
 		return nil, false, err
 	} else {
 		/* step: we get the environment variables from the container */
@@ -175,6 +175,5 @@ func (r *ConfigHook) ProcessContainerCreation(containerId string) {
 
 func (r *ConfigHook) ProcessContainerDestruction(containerId string) {
 	glog.V(5).Infof("Processing destruction of container: %s", containerId)
-
 
 }

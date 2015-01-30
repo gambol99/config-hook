@@ -43,7 +43,5 @@ var (
 
 func NewStore(location string) (Store, error) {
 
-
-
 	return nil, nil
 }
