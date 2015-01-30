@@ -14,14 +14,14 @@ limitations under the License.
 package hook
 
 import (
+	"strings"
+	"regexp"
+	"fmt"
 
 	"github.com/gambol99/config-hook/config"
 	"github.com/gambol99/config-hook/store"
 	dockerapi "github.com/gambol99/go-dockerclient"
 	"github.com/golang/glog"
-	"strings"
-	"regexp"
-	"fmt"
 )
 
 type ConfigHookService interface {
@@ -53,14 +53,14 @@ type ConfigHook struct {
 func NewConfigHookService() (ConfigHookService, error) {
 	service := new(ConfigHook)
 	/* step: we need to create a store agent */
-	if store, err := store.NewStore(config.Options.store_url); err != nil {
-		glog.Errorf("Failed to create a store agent, url: %s, error: %s", Options.store_url, err)
+	if store, err := store.NewStore(config.Options.Store_URL); err != nil {
+		glog.Errorf("Failed to create a store agent, url: %s, error: %s", config.Options.Store_URL, err)
 		return nil, err
 	} else {
 		service.store = store
 		/* step: create a docker client */
-		glog.Infof("Connecting to the docker service via: %s", config.Options.docker_socket)
-		docker, err := dockerapi.NewClient(Options.docker_socket)
+		glog.Infof("Connecting to the docker service via: %s", config.Options.Docker_Socket)
+		docker, err := dockerapi.NewClient(config.Options.Docker_Socket)
 		if err != nil {
 			glog.Errorf("Failed to connect to the docker service via docker, error: %s", err)
 			return nil, err
@@ -86,12 +86,12 @@ func (r *ConfigHook) ProcessEvents() error {
 	} else {
 		/* step: iterate the containers and look for services */
 		for _, container := range containers {
-			go r.ProcessDockerCreation(container.ID)
+			go r.ProcessContainerCreation(container.ID)
 		}
 	}
 
 	/* step: add ourselves as a docker event listener */
-	events_channel := make(chan <-*dockerapi.APIEvents)
+	events_channel := make(chan *dockerapi.APIEvents)
 	if err := r.docker.AddEventListener(events_channel); err != nil {
 		glog.Errorf("Failed to add ourselves as a docker events listen, error: %s", err)
 		return err
@@ -115,6 +115,7 @@ func (r *ConfigHook) ProcessEvents() error {
 			return
 		}
 	}()
+	return nil
 }
 
 func (r *ConfigHook) ContainerEnvironment(variables []string) (map[string]string, error) {
@@ -139,7 +140,7 @@ func (r *ConfigHook) ContainerEnvironment(variables []string) (map[string]string
 func (r *ConfigHook) HasConfig(containerId string) (map[string]string, bool, error) {
 	glog.V(5).Infof("Checking the container: %s for any config hook references", containerId)
 	/* step: get the container */
-	prefix := config.Options.runtime_prefix
+	prefix := config.Options.Runtime_Prefix
 
 	if container, err := r.docker.InspectContainer(containerId); err != nil {
 		glog.Errorf("Failed to inspect the container: %s, error: %s", containerId, err )
@@ -170,11 +171,10 @@ func (r *ConfigHook) HasConfig(containerId string) (map[string]string, bool, err
 
 func (r *ConfigHook) ProcessContainerCreation(containerId string) {
 	glog.V(5).Infof("Processing creation of container: %s", containerId)
-	if r.HasConfig(containerId) {
-		glog.Infof("Found config hook in container: %s", containerId)
-
-
-
+	if config, found, err := r.HasConfig(containerId); err != nil {
+		glog.Errorf("Failed to check if the container: %s has any hooks, error: %s", containerId, err)
+	} else if found {
+		glog.Infof("Found config hook in container: %s, config: %v", containerId, config)
 
 	}
 }
