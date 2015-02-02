@@ -11,4 +11,4 @@ ADD stage/config-hook /bin/config-hook
 ADD stage/startup.sh /startup.sh
 RUN chmod +x /bin/config-hook && chmod +x /startup.sh
 
-ENRTYPOINT [ "/startup.sh" ]
+ENTRYPOINT [ "/startup.sh" ]

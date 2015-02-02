@@ -177,6 +177,11 @@ func (r *ConfigHook) ProcessContainerCreation(containerId string) {
 	glog.V(5).Infof("Processing creation of container: %s", containerId)
 	if config, found, err := r.HasConfig(containerId); err != nil {
 		glog.Errorf("Failed to check if the container: %s has any hooks, error: %s", containerId, err)
+
+
+
+
+
 	} else if found {
 		glog.Infof("Found config hook in container: %s, config: %v", containerId, config)
 
