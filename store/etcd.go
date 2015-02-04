@@ -23,17 +23,24 @@ import (
 
 	etcd "github.com/coreos/go-etcd/etcd"
 	"github.com/golang/glog"
+	"time"
 )
 
 type EtcdStoreClient struct {
 	/* a lock for the watcher map */
 	sync.RWMutex
+	/* the base key for etcd */
+	base_key string
 	/* a list of etcd hosts */
 	hosts []string
 	/* the etcd client - under the hood is http client which should be pooled i believe */
 	client *etcd.Client
 	/* stop channel for the client */
 	stop_channel chan bool
+	/* a map of keys presently being watched */
+	watchedKeys map[string]bool
+	/* the channel used to send node updates */
+	update_channel chan NodeChange
 }
 
 /* etcd options for TLS support */
@@ -51,11 +58,13 @@ const (
 	ETCD_PREFIX = "etcd://"
 )
 
-func NewEtcdStoreClient(location *url.URL) (Store, error) {
+func NewEtcdStoreClient(location *url.URL, channel NodeUpdateChannel) (Store, error) {
 	/* step: create the client */
 	store := new(EtcdStoreClient)
 	store.hosts = store.ParseHostsURL(location)
 	store.stop_channel = make(chan bool)
+	store.update_channel = channel
+	store.base_key = "/"
 
 	glog.Infof("Creating a Etcd Agent for K/V Store, hosts: %s", store.hosts)
 
@@ -74,6 +83,85 @@ func NewEtcdStoreClient(location *url.URL) (Store, error) {
 	return store, nil
 }
 
+func (r *EtcdStoreClient) ProcessEvents() {
+	glog.V(VERBOSE_LEVEL).Infof("Starting the event watcher for the etcd clinet, channel: %v", r.update_channel)
+	/* the kill switch for the goroutine */
+	kill_off := false
+
+	/* routine: waits on the shutdown signal for the client and flicks the kill switch */
+	go func() {
+		glog.V(VERBOSE_LEVEL).Infof("Waiting on a shutdown signal from consumer, channel: %v", r.update_channel)
+		/* step: wait for the shutdown signal */
+		<-r.stop_channel
+		/* @perhaps : we could speed up the take down by using a stop channel on the watch? */
+		glog.V(VERBOSE_LEVEL).Infof("Flicking the kill switch for watcher, channel: %v", r.update_channel)
+		kill_off = true
+	}()
+
+	/* routine: loops around watching until flick the switch */
+	go func() {
+		/* step: set the index to zero for now */
+		wait_index := uint64(0)
+		/* step: look until we hit the kill switch */
+		for {
+			if kill_off {
+				break
+			}
+			/* step: apply a watch on the key and wait */
+			response, err := r.client.Watch(r.base_key, wait_index, true, nil, nil)
+			if err != nil {
+				glog.Errorf("Failed to attempting to watch the key: %s, error: %s", r.base_key, err)
+				time.Sleep(3 * time.Second)
+				wait_index = uint64(0)
+				continue
+			}
+
+			/* step: have we been requested to quit */
+			if kill_off {
+				continue
+			}
+			/* step: update the wait index */
+			wait_index = response.Node.ModifiedIndex + 1
+
+			/* step: cool - we have a notification - lets check if this key is being watched */
+			go r.ProcessNodeChange(response)
+		}
+		glog.V(VERBOSE_LEVEL).Infof("Exitted the k/v watcher routine, channel: %v", r.update_channel)
+	}()
+}
+
+func (r *EtcdStoreClient) ProcessNodeChange(response *etcd.Response) {
+	/* step: are there any keys being watched */
+	if len(r.watchedKeys) <= 0 {
+		return
+	}
+	r.RLock()
+	defer r.RUnlock()
+	/* step: iterate the list and find out if our key is being watched */
+	path := response.Node.Key
+	glog.V(VERBOSE_LEVEL).Infof("Checking if key: %s is being watched", path)
+	for watch_key, _ := range r.watchedKeys {
+		if strings.HasPrefix(path, watch_key) {
+			glog.V(VERBOSE_LEVEL).Infof("Sending notification of change on key: %s, channel: %v, event: %v", path, r.update_channel, response)
+			/* step: we create an event and send upstream */
+			var event NodeChange
+			event.Node.Path = response.Node.Key
+			event.Node.Value = response.Node.Value
+			event.Node.Directory = response.Node.Dir
+			switch response.Action {
+			case "set":
+				event.Operation = CHANGED
+			case "delete":
+				event.Operation = DELETED
+			}
+			/* step: send the event upstream via the channel */
+			r.update_channel <- event
+			return
+		}
+	}
+	glog.V(VERBOSE_LEVEL).Infof("The key: %s is presently not being watched, we can ignore for now", path)
+}
+
 func (r EtcdStoreClient) ParseHostsURL(location *url.URL) []string {
 	hosts := make([]string, 0)
 	/* step: determine the protocol */
@@ -90,6 +178,18 @@ func (r EtcdStoreClient) ParseHostsURL(location *url.URL) []string {
 func (r *EtcdStoreClient) Close() {
 	glog.Infof("Shutting down the etcd client")
 	r.stop_channel <- true
+}
+
+func (r *EtcdStoreClient) Watch(key string) {
+	r.Lock()
+	defer r.Unlock()
+	/* step: we check if the key is being watched and if not add it */
+	if _, found := r.watchedKeys[key]; found {
+		glog.V(VERBOSE_LEVEL).Infof("Thy key: %s is already being wathed, skipping for now", key)
+	} else {
+		glog.V(VERBOSE_LEVEL).Infof("Adding a watch on the key: %s", key)
+		r.watchedKeys[key] = true
+	}
 }
 
 func (r *EtcdStoreClient) ValidateKey(key string) string {

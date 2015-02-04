@@ -13,20 +13,47 @@ limitations under the License.
 
 package hook
 
+import (
+	"fmt"
+)
 
 const (
-	HOOK_TYPE_FILE		= 1
-	HOOK_TYPE_CONFIG	= 2
+	HOOK_TYPE_FILE		= 0
+	HOOK_TYPE_CONFIG	= 1
+	EXEC_FOREVER        = 0
+	EXEC_ONETIME        = 1
 )
 
 type HookConfig struct {
 	/* the type of hook */
-	hook_type int
+	hook int
 	/* the path to the file */
-	path string
+	file_path string
+	/* the action to perform if any on a change of content */
+	action *HookExec
+}
 
+func (r HookConfig) String() string {
+	hook_type := "file"
+	if r.hook == HOOK_TYPE_CONFIG {
+		hook_type = "config"
+	}
+	return fmt.Sprintf("hook: type: %s, resource: %s, action: %s", hook_type, r.file_path, *r.action)
 }
 
 type HookExec struct {
+	/* the command to execute on the change of a config */
+	execute_path string
+	/* the command to execute to validate the config, if any */
+	check_path string
+	/* the type of exec - onetime or forever */
+	exec_type int
+}
 
+func (r HookExec) String() string {
+	exec_type := "one-time"
+	if r.exec_type == EXEC_FOREVER {
+		exec_type = "forever"
+	}
+	return fmt.Sprintf("exec: execute: %s, check: %s, type: %s", r.execute_path, r.check_path, exec_type)
 }

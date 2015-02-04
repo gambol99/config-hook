@@ -48,12 +48,15 @@ type ConfigHook struct {
 	docker *dockerapi.Client
 	/* the shutdown channel */
 	shutdown_channel chan bool
+	/* channel used to receive updates from the store (etcd) */
+	update_channel store.NodeUpdateChannel
 }
 
 func NewConfigHookService() (ConfigHookService, error) {
 	service := new(ConfigHook)
+	service.update_channel = make(store.NodeUpdateChannel,10)
 	/* step: we need to create a store agent */
-	if store, err := store.NewStore(config.Options.Store_URL); err != nil {
+	if store, err := store.NewStore(config.Options.Store_URL, service.update_channel); err != nil {
 		glog.Errorf("Failed to create a store agent, url: %s, error: %s", config.Options.Store_URL, err)
 		return nil, err
 	} else {

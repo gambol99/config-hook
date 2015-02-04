@@ -27,6 +27,8 @@ type Store interface {
 	Get(key string) (*Node, error)
 	/* List all the keys under a path */
 	Paths(path string, paths *[]string) ([]string, error)
+	/* watch for changes on a key */
+	Watch(key string)
 	/* Get a list of all the nodes under the path */
 	List(path string) ([]*Node, error)
 	/* set a key in the store */
@@ -44,7 +46,7 @@ var (
 	InvalidDirectoryErr = errors.New("Invalid directory specified")
 )
 
-func NewStore(location string) (Store, error) {
+func NewStore(location string, channel NodeUpdateChannel) (Store, error) {
 	if location == "" {
 		glog.Errorf("Failed to create a store agent, you have not specified the location")
 		return nil, errors.New("You have not specific a location for the store")
@@ -58,7 +60,7 @@ func NewStore(location string) (Store, error) {
 	} else {
 		switch uri.Scheme {
 		case "etcd":
-			if agent, err := NewEtcdStoreClient(uri); err != nil {
+			if agent, err := NewEtcdStoreClient(uri, channel); err != nil {
 				glog.Errorf("Failed to create the Etcd Store agent, error: %s", err)
 			} else {
 				return agent, nil
