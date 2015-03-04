@@ -21,6 +21,7 @@ import (
 
 	"github.com/gambol99/config-hook/config"
 	"github.com/gambol99/config-hook/hook"
+
 	"github.com/golang/glog"
 )
 
@@ -30,9 +31,8 @@ func main() {
 	/* step: print the banner */
 	glog.Infof("Starting the Config Hook Service, version: %s (author: %s)", VERSION, config.AUTHOR)
 	/* step: we create the hook service and wait */
-	if service, err := hook.NewConfigHookService(); err != nil {
-		glog.Errorf("Failed to create the hook service, error: %s", err)
-		os.Exit(1)
+	if service, err := hook.NewConfigHook(); err != nil {
+		glog.Fatalf("Failed to create the hook service, error: %s", err)
 	} else {
 		/* step: we wait for any kill signals */
 		signalChannel := make(chan os.Signal)

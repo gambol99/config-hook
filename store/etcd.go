@@ -20,10 +20,10 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	etcd "github.com/coreos/go-etcd/etcd"
 	"github.com/golang/glog"
-	"time"
 )
 
 type EtcdStoreClient struct {

@@ -18,18 +18,18 @@ import (
 )
 
 const (
-	HOOK_TYPE_FILE		= 0
-	HOOK_TYPE_CONFIG	= 1
-	EXEC_FOREVER        = 0
-	EXEC_ONETIME        = 1
+	HOOK_TYPE_FILE   = 0
+	HOOK_TYPE_CONFIG = 1
+	EXEC_FOREVER     = 0
+	EXEC_ONETIME     = 1
 )
 
 type HookConfig struct {
-	/* the type of hook */
+	// the type of hook
 	hook int
-	/* the path to the file */
+	// the path to the file
 	file_path string
-	/* the action to perform if any on a change of content */
+	// the action to perform if any on a change of content
 	action *HookExec
 }
 
