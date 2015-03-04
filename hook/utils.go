@@ -28,7 +28,7 @@ func isValidSocket(filename string) (bool, error) {
 		return false, err
 	}
 	// step: is it socket?
-	if mode.Mode() & os.ModeSocket != 0 {
+	if mode.Mode()&os.ModeSocket != 0 {
 		return false, errors.New("the file: " + filename + " is not a socket")
 	}
 	return true, nil

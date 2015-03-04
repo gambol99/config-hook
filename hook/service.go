@@ -94,14 +94,13 @@ func (r *ConfigHookService) processEvents() error {
 
 	for {
 		select {
-		case id := <- dockers_creates:
+		case id := <-dockers_creates:
 			var _ = id
 
-		case id := <- dockers_destroys:
+		case id := <-dockers_destroys:
 			var _ = id
 
-		case <- r.shutdown:
-
+		case <-r.shutdown:
 
 		}
 	}

@@ -28,10 +28,10 @@ import (
 type DockerEvent chan string
 
 const (
-	DOCKER_START            = "start"
-	DOCKER_DIE              = "die"
-	DOCKER_CREATED          = "created"
-	DOCKER_DESTROY          = "destroy"
+	DOCKER_START   = "start"
+	DOCKER_DIE     = "die"
+	DOCKER_CREATED = "created"
+	DOCKER_DESTROY = "destroy"
 )
 
 // The interface to docker
@@ -39,9 +39,9 @@ type DockerStore interface {
 	// Get a listing of containers
 	List() ([]string, error)
 	// watch for docker creations
-	WatchCreations(channel DockerEvent) error
+	WatchCreations(channel DockerEvent)
 	// watch for docker destructions
-	WatchDestructions(channel DockerEvent) error
+	WatchDestructions(channel DockerEvent)
 	// retrieve the environment variables for a container
 	Environment(container string) (map[string]string, error)
 	// Close down the resources
@@ -103,54 +103,16 @@ func (r *DockerService) List() ([]string, error) {
 	return list, nil
 }
 
-func (r *DockerService) WatchCreations(channel DockerEvent) error {
-
-
-	return nil
+func (r *DockerService) WatchCreations(channel DockerEvent) {
+	r.Lock()
+	defer r.Unlock()
+	r.destroy_listeners = append(r.creation_listeners, channel)
 }
 
-func (r *DockerService) WatchDestructions(channel DockerEvent) error {
-
-	return nil
-}
-
-func (r *DockerService) processEvents() error {
-
-	// step: add the docker events
-	updates := make(chan *dockerapi.APIEvents, 5)
-	if err := r.client.AddEventListener(updates); err != nil {
-		glog.Errorf("Failed to add ourselves as a docker events listen, error: %s", err)
-		return err
-	}
-	// step: start the routine
-	go func() {
-		for {
-			select {
-			case event := <- updates:
-				glog.V(10).Infof("Recieved a docker event, id: %s, status: %s", event.ID, event.Status)
-				switch event.Status {
-				case DOCKER_START:
-					r.pushEvents(event.ID, r.creation_listeners)
-				case DOCKER_DESTROY:
-					r.pushEvents(event.ID, r.destroy_listeners)
-				}
-			case <- r.shutdown:
-				r.client.RemoveEventListener(updates)
-				// step: close all the listeners
-			}
-		}
-	}()
-
-	return nil
-}
-
-func (r *DockerService) pushEvents(containerID string, listeners []DockerEvent) {
-	for _, listener := range listeners {
-		// DO NOT BLOCK ME!!
-		go func() {
-			listener <- containerID
-		}()
-	}
+func (r *DockerService) WatchDestructions(channel DockerEvent) {
+	r.Lock()
+	defer r.Unlock()
+	r.destroy_listeners = append(r.destroy_listeners, channel)
 }
 
 func (r *DockerService) Environment(containerId string) (map[string]string, error) {
@@ -169,5 +131,43 @@ func (r *DockerService) Environment(containerId string) (map[string]string, erro
 	return environment, nil
 }
 
+func (r *DockerService) processEvents() error {
 
+	// step: add the docker events
+	updates := make(chan *dockerapi.APIEvents, 5)
+	if err := r.client.AddEventListener(updates); err != nil {
+		glog.Errorf("Failed to add ourselves as a docker events listen, error: %s", err)
+		return err
+	}
+	// step: start the routine
+	go func() {
+		for {
+			select {
+			case event := <-updates:
+				glog.V(10).Infof("Recieved a docker event, id: %s, status: %s", event.ID, event.Status)
+				switch event.Status {
+				case DOCKER_START:
+					r.pushEvents(event.ID, r.creation_listeners)
+				case DOCKER_DESTROY:
+					r.pushEvents(event.ID, r.destroy_listeners)
+				}
+			case <-r.shutdown:
+				r.client.RemoveEventListener(updates)
+				// step: close all the listeners
+			}
+		}
+	}()
 
+	return nil
+}
+
+func (r *DockerService) pushEvents(containerID string, listeners []DockerEvent) {
+	r.RLock()
+	defer r.RUnlock()
+	for _, listener := range listeners {
+		// DO NOT BLOCK ME!!
+		go func() {
+			listener <- containerID
+		}()
+	}
+}
