@@ -13,23 +13,25 @@ limitations under the License.
 
 package hook
 
-import (
-	"os"
+import "fmt"
 
-	"errors"
-)
-
-type ShutdownChannel chan bool
-
-func isValidSocket(filename string) (bool, error) {
-	// step: check the docker exists
-	mode, err := os.Stat(filename)
-	if err != nil {
-		return false, err
+func NewHookKeys(id string) *HookKeys {
+	return &HookKeys{
+		ID:    id,
+		File:  "",
+		Flags: "",
 	}
-	// step: is it socket?
-	if mode.Mode()&os.ModeSocket == 0 {
-		return false, errors.New("the file: " + filename + " is not a socket")
-	}
-	return true, nil
+}
+
+type HookKeys struct {
+	// the id which is associated to the keys
+	ID string `json:"id"`
+	// the file which holds the content
+	File string `json:"file"`
+	// the flags associated to the config
+	Flags string `json:"flags"`
+}
+
+func (r HookKeys) String() string {
+	return fmt.Sprintf("id: %s, file: %s, flags: %s", r.ID, r.File, r.Flags)
 }

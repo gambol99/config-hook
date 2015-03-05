@@ -23,6 +23,14 @@ changelog:
 
 all: clean changelog build docker
 
+test:
+	go get github.com/stretchr/testify
+	for i in hook store; do
+		cd $i
+		godep go test
+		cd ..
+	done
+
 release:
 	rm -rf release
 	mkdir release

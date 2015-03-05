@@ -16,11 +16,11 @@ package hook
 import (
 	"fmt"
 	"regexp"
-	"strings"
 
 	"github.com/gambol99/config-hook/config"
 	"github.com/gambol99/config-hook/store"
 
+	"github.com/go-fsnotify/fsnotify"
 	"github.com/golang/glog"
 )
 
@@ -28,19 +28,6 @@ type ConfigHook interface {
 	// close down any resources
 	Close()
 }
-
-const (
-	DOCKER_EVENT_START   = "start"
-	DOCKER_EVENT_DIE     = "die"
-	DOCKER_EVENT_CREATED = "created"
-	DOCKER_EVENT_DESTROY = "destroy"
-
-	HOOK_FILE         = "FILE_"
-	HOOK_CONFIG       = "CONFIG_"
-	HOOK_EXEC_ONETIME = "EXECO_"
-	HOOK_EXEC         = "EXEC_"
-	HOOK_REGEX        = "(FILE|CONFIG|EXECO|EXEC)_"
-)
 
 type ConfigHookService struct {
 	// the agent for the k/v store
@@ -51,7 +38,21 @@ type ConfigHookService struct {
 	shutdown ShutdownChannel
 	// channel used to receive updates from the store (etcd)
 	update_channel store.NodeUpdateChannel
+	// a map of containerId to config hooks
+	hooks map[string]*Hooks
+	// the file watcher
+	inotify *fsnotify.Watcher
 }
+
+const (
+	HOOK_KEYS = "KEYS"
+	HOOK_FILE = "FILE"
+)
+
+var (
+	hook_file_regex, hook_keys_regex *regexp.Regexp
+	hook_file_prefix, hook_keys_prefix string
+)
 
 func NewConfigHook() (ConfigHook, error) {
 
@@ -59,6 +60,14 @@ func NewConfigHook() (ConfigHook, error) {
 	service := new(ConfigHookService)
 	service.update_channel = make(store.NodeUpdateChannel, 10)
 	service.shutdown = make(ShutdownChannel)
+
+	// step: set the prefixes and regexes
+	hook_file_regex = regexp.MustCompile(fmt.Sprintf("^%s%s_([[:alpha:]]+)[$_]?(KEY|CHECK|EXEC|FLAGS)?",
+		config.Options.Runtime_Prefix, HOOK_FILE))
+	hook_keys_regex = regexp.MustCompile(fmt.Sprintf("^%s%s_([[:alpha:]]+)$",
+		config.Options.Runtime_Prefix, HOOK_KEYS))
+	hook_file_prefix = fmt.Sprintf("%s%s", config.Options.Runtime_Prefix, HOOK_FILE)
+	hook_keys_prefix = fmt.Sprintf("%s%s", config.Options.Runtime_Prefix, HOOK_KEYS)
 
 	// step: we need to create a store agent
 	service.store, err = store.NewStore(config.Options.Store_URL, service.update_channel)
@@ -74,6 +83,14 @@ func NewConfigHook() (ConfigHook, error) {
 		return nil, err
 	}
 
+	glog.V(3).Infof("%s, runtime prefix: %s", config.NAME, config.Options.Runtime_Prefix)
+
+	// step: preprocess any container which are already running
+	if err := service.preprocessContainers(); err != nil {
+		glog.Errorf("Failed to preprocess the container, error: %s", err)
+		return nil, err
+	}
+
 	// step: kick off the processing of events
 	if err := service.processEvents(); err != nil {
 		glog.Errorf("Failed to start processing events in the Hook Service, error: %s", err)
@@ -84,33 +101,80 @@ func NewConfigHook() (ConfigHook, error) {
 }
 
 func (r *ConfigHookService) Close() {
+	glog.Infof("Shutting down the %s", config.NAME)
+}
 
+func (r *ConfigHookService) preprocessContainers() error {
+	glog.V(6).Infof("Preprocessing any container which are already running")
+	containers, err := r.docker.List()
+	if err != nil {
+		return err
+	}
+	// step: iterate the containers and pre-process them
+	for _, container := range containers {
+		r.processContainerCreation(container)
+	}
+	return nil
 }
 
 func (r *ConfigHookService) processEvents() error {
 	// docker creation events
-	dockers_creates := make(DockerEvent, 10)
-	dockers_destroys := make(DockerEvent, 10)
+	container_created := make(DockerEvent, 10)
+	container_destroyed := make(DockerEvent, 10)
+	content_changes := make(chan string, 0)
 
-	for {
-		select {
-		case id := <-dockers_creates:
-			var _ = id
+	// step: add the watch
+	r.docker.Watch(container_created, DOCKER_START)
+	r.docker.Watch(container_destroyed, DOCKER_DESTROY)
 
-		case id := <-dockers_destroys:
-			var _ = id
-
-		case <-r.shutdown:
-
+	go func() {
+		glog.Infof("Starting the event processor for config hook service")
+		for {
+			select {
+			// a container has been created
+			case id := <-container_created:
+				glog.V(6).Infof("Container: %s creation event", id)
+				r.processContainerCreation(id)
+			// a container has been destroyed
+			case id := <-container_destroyed:
+				glog.V(6).Infof("Container: %s destruction event", id)
+				r.processContainerDestruction(id)
+			// the contents of a file has changed
+			case filename := <-content_changes:
+				glog.V(6).Infof("The file: %s has changed", filename)
+			// we have hit a shutdown event
+			case <-r.shutdown:
+				glog.Infof("Request to shutdown the service")
+				r.docker.Close()
+			}
 		}
-	}
+	}()
+	return nil
 }
 
-func (r *ConfigHookService) hasConfig(containerId string) (map[string]string, bool, error) {
-	glog.V(5).Infof("Checking the container: %s for any config hook references", containerId)
-	/* step: get the container */
-	prefix := config.Options.Runtime_Prefix
-	regex := fmt.Sprintf("^%s%s", prefix, HOOK_REGEX)
+func (r *ConfigHookService) processContainerCreation(containerId string) {
+	glog.V(5).Infof("Processing creation of container: %s", containerId[:12])
+	// step: check if the container has any config hooks
+	hooks, found, err := r.hasConfig(containerId)
+	glog.V(10).Infof("Container: %s, hooks files: %V", containerId[:12], hooks.files)
+	if err != nil {
+		glog.Errorf("Failed to process the container: %s, error: %s", containerId[:12], err)
+	} else if !found {
+		glog.V(6).Infof("The container: %s has not config hooks, skipping", containerId[:12])
+		return
+	}
+	glog.V(6).Infof("Found in container: %s, hooks: %s", containerId[:12], hooks)
+
+}
+
+func (r *ConfigHookService) processContainerDestruction(containerId string) {
+	glog.V(5).Infof("Processing destruction of container: %s", containerId)
+
+}
+
+func (r *ConfigHookService) hasConfig(containerId string) (*Hooks, bool, error) {
+	glog.V(6).Infof("Checking the container: %s for any config hook references", containerId)
+	// step: get the container
 
 	// step: get the environment of the container
 	environment, err := r.docker.Environment(containerId)
@@ -120,37 +184,24 @@ func (r *ConfigHookService) hasConfig(containerId string) (map[string]string, bo
 	}
 
 	// step: lets attempt to find config hooks
-	list := make(map[string]string, 0)
-	found := false
-	/* step: iterate the environment vars and look for hooks */
-	for name, value := range environment {
-		glog.V(20).Infof("HasConfig() checking key: %s, value: %s", name, value)
-		/* check: does it start with the prefix? */
-		if strings.HasPrefix(name, prefix) {
-			/* check: does the left over start with a hook type? */
-			if matched, _ := regexp.MatchString(regex, name); matched {
-				glog.V(20).Infof("HasConfig() found matching regex key: %s, value: %s", name, value)
-				list[name] = value
-				found = true
-			}
+	hooks := NewHooksConfig()
+
+	// step: iterate the environment vars and look for hooks
+	for key, value := range environment {
+		glog.V(10).Infof("HasConfig() container: %s, checking key: %s, value: %s", containerId[:12], key, value)
+		hook, name, element, err := hooks.ParseKey(key)
+		if err != nil {
+			glog.Errorf("failed, error: %s", err)
+			continue
+		}
+		switch hook {
+		case HOOK_FILE:
+			hooks.Files(name).Set(element, value)
+		case HOOK_KEYS:
+			hooks.Keys(name).File = value
 		}
 	}
-	glog.V(20).Infof("HasConfig() list: %v, found: %s", list, found)
-	return list, found, nil
-}
+	// step: iterate the configs and validate them
 
-func (r *ConfigHookService) processContainerCreation(containerId string) {
-	glog.V(5).Infof("Processing creation of container: %s", containerId)
-	if config, found, err := r.hasConfig(containerId); err != nil {
-		glog.Errorf("Failed to check if the container: %s has any hooks, error: %s", containerId, err)
-
-	} else if found {
-		glog.Infof("Found config hook in container: %s, config: %v", containerId, config)
-
-	}
-}
-
-func (r *ConfigHookService) processContainerDestruction(containerId string) {
-	glog.V(5).Infof("Processing destruction of container: %s", containerId)
-
+	return hooks, hooks.HasConfigs(), nil
 }

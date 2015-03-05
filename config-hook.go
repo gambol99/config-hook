@@ -26,21 +26,20 @@ import (
 )
 
 func main() {
-	/* step: parse the command line options */
 	flag.Parse()
-	/* step: print the banner */
+
 	glog.Infof("Starting the Config Hook Service, version: %s (author: %s)", VERSION, config.AUTHOR)
-	/* step: we create the hook service and wait */
+
 	if service, err := hook.NewConfigHook(); err != nil {
 		glog.Fatalf("Failed to create the hook service, error: %s", err)
 	} else {
-		/* step: we wait for any kill signals */
+		// step: we wait for any kill signals
 		signalChannel := make(chan os.Signal)
 		signal.Notify(signalChannel, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
-		/* step: wait on the signal */
+		// step: wait on the signal
 		<-signalChannel
-		glog.Infof("Shutting down the %s", config.DEFAULT_NAME)
-		/* step: shutdown the service */
+		glog.Infof("Shutting down the %s", config.NAME)
+		// step: shutdown the service
 		service.Close()
 	}
 }

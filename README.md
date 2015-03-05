@@ -45,11 +45,11 @@ An alternative would be to build inside a golang container
 ---
 All the runtime variables are read from the environment variables of the container. The default prefix is CONFIG_HOOK_[TYPE]. We have the following hook types
 
- >  * FILE:       a file / template to injected into the store
+ >  * FILE:     a file / template to injected into the store
  >  * KEYS:     a file containing a series of KEY=VALUE pairs which are injected into the k/v store
 
 #### **File Types**
-**Format**: PREFIX_FILE_[NAME]=[PATH];[KEY];[EXEC];[FLAGS]
+**Format**: [PREFIX]_FILE_[NAME]=[PATH];[KEY];[EXEC];[CHECK];[FLAGS]
 
 > - NAME: the name is an arbitrary identifier for the type and should be unique, additions with simply override the former
 > - PATH: the path of the file | template INSIDE the container
@@ -57,6 +57,7 @@ All the runtime variables are read from the environment variables of the contain
 
 **Optional**:
 > - EXEC:  a command line execute when the content of PATH has changed
+> - CHECK: the command line to perform to check the validity of the content, must return 0 to perform above exec
 > - FLAGS: a comma separated list of options i.e. OT (onetime)
 
 **Examples**:
@@ -73,12 +74,13 @@ Note, if you don't like the compact format above you can spread the above sectio
 
     HK_FILE_<NAME>=/config/haproxy.cfg
     HK_FILE_<NAME>_KEY=/env/%ENVIRONMENT%/configs/haproxy.cfg
-    HK_FILE_<NAME>_EXEC=/config/haproxy.cfg
+    HK_FILE_<NAME>_EXEC=/usr/local/ha_restart
+    HK_FILE_<NAME>_CHECK=/usr/bin/haproxy -c /etc/haproxy.cfg -t
     HK_FILE_<NAME>_FLAGS=/config/haproxy.cfg
 
 #### **Keys Types**
 
-**Format**: PREFIX_FILE_[NAME]=[PATH];[FLAGS}
+**Format**: [PREFIX]_KEYS_[NAME]=[PATH];[FLAGS]
 
 > - NAME: the name is an arbitrary identifier for the type 
 > - PATH: the path of the file within the container which has the key pairs

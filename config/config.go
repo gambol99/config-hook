@@ -18,20 +18,20 @@ import (
 )
 
 const (
-	DEFAULT_RUNTIME_PREFIX = "_HOOK_"
-	DEFAULT_DOCKER_SOCKET  = "/var/run/docker.sock"
-	DEFAULT_STORE_URL      = "etcd://localhost:4001"
 	AUTHOR                 = "Rohith <gambol99@gmail.com>"
-	DEFAULT_NAME           = "Config Hook Service"
+	NAME           		   = "Config Hook Service"
+	DEFAULT_RUNTIME_PREFIX = "CONFIG_HOOK_"
+	DEFAULT_DOCKER_SOCKET  = "/var/run/docker.sock"
+	DEFAULT_STORE_URL      = "etcd://127.0.0.1:4001"
 )
 
-/* the configuration options for the service */
+// the configuration options for the service
 type ConfigHookOptions struct {
-	/* the docker socket file path */
+	// the docker socket file path
 	Docker_Socket string
-	/* the runtime variable used to indicate configuration resolve */
+	// the runtime variable used to indicate configuration resolve
 	Runtime_Prefix string
-	/* the url location of the store */
+	// the url location of the store
 	Store_URL string
 }
 
