@@ -50,7 +50,7 @@ const (
 )
 
 var (
-	hook_file_regex, hook_keys_regex *regexp.Regexp
+	hook_file_regex, hook_keys_regex   *regexp.Regexp
 	hook_file_prefix, hook_keys_prefix string
 )
 
@@ -174,7 +174,6 @@ func (r *ConfigHookService) processContainerCreation(containerId string) {
 	// step: process the hook files
 	for _, x := range hooks.files {
 
-
 	}
 }
 
@@ -183,7 +182,6 @@ func (r *ConfigHookService) processContainerDestruction(containerId string) {
 	// step: check if the hooks config exists for this
 	if _, found := r.hooks[containerId]; found {
 		// step: close up any of the resources used by this
-
 
 		// step: remove from the map
 		delete(r.hooks, containerId)

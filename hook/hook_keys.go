@@ -14,8 +14,8 @@ limitations under the License.
 package hook
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 )
 
 func NewHookKeys(id string) *HookKeys {

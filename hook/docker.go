@@ -14,8 +14,8 @@ limitations under the License.
 package hook
 
 import (
-	"bytes"
 	"bufio"
+	"bytes"
 	"errors"
 	"regexp"
 	"strings"

@@ -19,7 +19,7 @@ import (
 
 const (
 	AUTHOR                 = "Rohith <gambol99@gmail.com>"
-	NAME           		   = "Config Hook Service"
+	NAME                   = "Config Hook Service"
 	DEFAULT_RUNTIME_PREFIX = "CONFIG_HOOK_"
 	DEFAULT_DOCKER_SOCKET  = "/var/run/docker.sock"
 	DEFAULT_STORE_URL      = "etcd://127.0.0.1:4001"

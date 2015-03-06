@@ -17,7 +17,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
 )
 
 func NewHookFile(id string) *HookFile {
