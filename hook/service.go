@@ -59,6 +59,7 @@ func NewConfigHook() (ConfigHook, error) {
 	var err error
 	service := new(ConfigHookService)
 	service.update_channel = make(store.NodeUpdateChannel, 10)
+	service.hooks = make(map[string]*Hooks, 0)
 	service.shutdown = make(ShutdownChannel)
 
 	// step: set the prefixes and regexes
@@ -154,22 +155,39 @@ func (r *ConfigHookService) processEvents() error {
 
 func (r *ConfigHookService) processContainerCreation(containerId string) {
 	glog.V(5).Infof("Processing creation of container: %s", containerId[:12])
+
 	// step: check if the container has any config hooks
-	hooks, found, err := r.hasConfig(containerId)
+	hooks, has_hooks, err := r.hasConfig(containerId)
 	glog.V(10).Infof("Container: %s, hooks files: %V", containerId[:12], hooks.files)
 	if err != nil {
 		glog.Errorf("Failed to process the container: %s, error: %s", containerId[:12], err)
-	} else if !found {
+		return
+	}
+	if !has_hooks {
 		glog.V(6).Infof("The container: %s has not config hooks, skipping", containerId[:12])
 		return
 	}
-	glog.V(6).Infof("Found in container: %s, hooks: %s", containerId[:12], hooks)
 
+	// step: add the hooks map
+	r.hooks[containerId] = hooks
+
+	// step: process the hook files
+	for _, x := range hooks.files {
+
+
+	}
 }
 
 func (r *ConfigHookService) processContainerDestruction(containerId string) {
 	glog.V(5).Infof("Processing destruction of container: %s", containerId)
+	// step: check if the hooks config exists for this
+	if _, found := r.hooks[containerId]; found {
+		// step: close up any of the resources used by this
 
+
+		// step: remove from the map
+		delete(r.hooks, containerId)
+	}
 }
 
 func (r *ConfigHookService) hasConfig(containerId string) (*Hooks, bool, error) {
@@ -188,20 +206,22 @@ func (r *ConfigHookService) hasConfig(containerId string) (*Hooks, bool, error) 
 
 	// step: iterate the environment vars and look for hooks
 	for key, value := range environment {
-		glog.V(10).Infof("HasConfig() container: %s, checking key: %s, value: %s", containerId[:12], key, value)
-		hook, name, element, err := hooks.ParseKey(key)
-		if err != nil {
-			glog.Errorf("failed, error: %s", err)
-			continue
-		}
-		switch hook {
-		case HOOK_FILE:
-			hooks.Files(name).Set(element, value)
-		case HOOK_KEYS:
-			hooks.Keys(name).File = value
+		if hooks.IsHook(key) {
+			if hook, name, element, err := hooks.ParseKey(key); err == nil {
+				switch hook {
+				case HOOK_FILE:
+					hooks.Files(name).Set(element, value)
+				case HOOK_KEYS:
+					hooks.Keys(name).File = value
+				}
+			}
 		}
 	}
-	// step: iterate the configs and validate them
 
-	return hooks, hooks.HasConfigs(), nil
+	// step: we need to validate the hooks and remove anything which does satisfy
+	if err := hooks.Validate(); err != nil {
+		glog.Errorf("One or more configs had errors in container: %s, error: %s", containerId, err)
+	}
+
+	return hooks, hooks.HasHooks(), nil
 }

@@ -14,13 +14,13 @@ limitations under the License.
 package hook
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/gambol99/config-hook/config"
-
 	"github.com/golang/glog"
 )
 
@@ -36,6 +36,14 @@ type HookParser interface {
 	ParseKey(key string) (string, string, error)
 	// is a config hook
 	IsHook(key string) bool
+	// check if the config has any hooks
+	HasHooks() bool
+	// retrieve the files
+	Files(name string) *HookFile
+	// retrieve the keys
+	Keys(name string) *HookKeys
+	// validate the hooks
+	Validate() error
 }
 
 type Hooks struct {
@@ -50,20 +58,9 @@ func (r Hooks) IsHook(key string) bool {
 	return strings.HasPrefix(key, config.Options.Runtime_Prefix)
 }
 
-func (r Hooks) HasConfigs() bool {
-	if len(r.files) > 0 || len(r.keys) > 0 {
-		return true
-	}
-	return false
-}
-
 // Parses the key and extracts the type, the name and the element if has it
 // 	key: 	the config hook key
 func (r Hooks) ParseKey(key string) (string, string, string, error) {
-	// step: is it a file hook?
-	glog.V(10).Infof("ParseKey() hook_file_prefix: %s", hook_file_prefix)
-	glog.V(10).Infof("ParseKey() hook_keys_prefix: %s", hook_keys_prefix)
-
 	if strings.HasPrefix(key, hook_file_prefix) {
 		matches, size := r.findMatches(key, hook_file_regex)
 		if size < 1 {
@@ -86,19 +83,6 @@ func (r Hooks) ParseKey(key string) (string, string, string, error) {
 	return "", "", "", nil
 }
 
-func (r *Hooks) findMatches(src string, reg *regexp.Regexp) ([]string, int) {
-	list := make([]string, 0)
-	for index, element := range (*reg).FindStringSubmatch(src) {
-		if index == 0 {
-			continue
-		}
-		if element != "" {
-			list = append(list, element)
-		}
-	}
-	return list, len(list)
-}
-
 func (r *Hooks) Files(id string) *HookFile {
 	file, found := r.files[id]
 	if !found {
@@ -117,6 +101,52 @@ func (r *Hooks) Keys(id string) *HookKeys {
 	return keys
 }
 
+func (r Hooks) HasHooks() bool {
+	if len(r.files) > 0 || len(r.keys) > 0 {
+		return true
+	}
+	return false
+}
+
+func (r Hooks) Validate() error {
+	// step: validate the hook files
+	for id, x := range r.files {
+		if err := r.Valid(); err != nil {
+			glog.Errorf("invalid hook file config, error: %s", err)
+			delete(r.files, id)
+		}
+	}
+	// step: validate the keys
+	for id, x := range r.keys {
+		if err := r.Valid(); err != nil {
+			glog.Errorf("invalid hook keys config, error: %s", err)
+			delete(r.keys, id)
+		}
+	}
+	return nil
+}
+
+func (r *Hooks) findMatches(src string, reg *regexp.Regexp) ([]string, int) {
+	list := make([]string, 0)
+	for index, element := range (*reg).FindStringSubmatch(src) {
+		if index == 0 {
+			continue
+		}
+		if element != "" {
+			list = append(list, element)
+		}
+	}
+	return list, len(list)
+}
+
 func (r Hooks) String() string {
-	return fmt.Sprintf("keys: %d, files: %d", len(r.keys), len(r.files))
+	var buffer bytes.Buffer
+	buffer.WriteString("Hooks config:\n")
+	for _, file := range r.files {
+		buffer.WriteString(fmt.Sprintf("%s\n", file))
+	}
+	for _, key := range r.keys {
+		buffer.WriteString(fmt.Sprintf("%s\n", key))
+	}
+	return buffer.String()
 }

@@ -13,7 +13,10 @@ limitations under the License.
 
 package hook
 
-import "fmt"
+import (
+	"fmt"
+	"errors"
+)
 
 func NewHookKeys(id string) *HookKeys {
 	return &HookKeys{
@@ -34,4 +37,17 @@ type HookKeys struct {
 
 func (r HookKeys) String() string {
 	return fmt.Sprintf("id: %s, file: %s, flags: %s", r.ID, r.File, r.Flags)
+}
+
+func (r HookKeys) Valid() (bool, error) {
+	if r.ID == "" {
+		return false, errors.New("the hook config does not contain a id")
+	}
+	if r.File == "" {
+		return false, errors.New("the hook config does not contain a file")
+	}
+	if r.Key == "" {
+		return false, errors.New("the hook config does not contain a key")
+	}
+	return true, nil
 }

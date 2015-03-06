@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 )
 
 func NewHookFile(id string) *HookFile {
@@ -62,7 +61,6 @@ func (r HookExec) String() string {
 }
 
 func (r *HookFile) Set(element string, value interface{}) {
-	glog.V(10).Infof("Adding the element: %s, value: %s", element, value)
 	switch element {
 	case "KEY":
 		r.Key = value.(string)
@@ -72,18 +70,20 @@ func (r *HookFile) Set(element string, value interface{}) {
 		r.Exec.Check = value.(string)
 	case "FLAGS":
 		r.Flags = value.(string)
+	case "":
+		r.File = value.(string)
 	}
 }
 
-func (r HookFile) Validate() (bool, error) {
+func (r HookFile) Valid() error {
 	if r.ID == "" {
-		return false, errors.New("the hook config does not contain a id")
+		return errors.New("the hook config does not contain a id")
 	}
 	if r.File == "" {
-		return false, errors.New("the hook config does not contain a file")
+		return errors.New("the hook config does not contain a file")
 	}
 	if r.Key == "" {
-		return false, errors.New("the hook config does not contain a key")
+		return errors.New("the hook config does not contain a key")
 	}
-	return true, nil
+	return nil
 }

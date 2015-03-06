@@ -14,6 +14,8 @@ limitations under the License.
 package hook
 
 import (
+	"bytes"
+	"bufio"
 	"errors"
 	"regexp"
 	"strings"
@@ -36,12 +38,14 @@ const (
 
 // The interface to docker
 type DockerStore interface {
+	// retrieve the contents of a file in a container
+	GetFile(containerID, filename string) (string, error)
 	// Get a listing of containers
 	List() ([]string, error)
 	// watch for docker events
 	Watch(channel DockerEvent, event_type string)
 	// retrieve the environment variables for a container
-	Environment(container string) (map[string]string, error)
+	Environment(containerID string) (map[string]string, error)
 	// Close down the resources
 	Close()
 }
@@ -113,6 +117,28 @@ func (r *DockerService) Watch(channel DockerEvent, event string) {
 			glog.Fatalf("Failed to start the docker event processor, error: %s", err)
 		}
 	})
+}
+
+func (r *DockerService) HasFile(containerID, filename string) (bool, error) {
+
+}
+
+func (r *DockerService) GetFile(containerID, filename string) (string, error) {
+	var buffer bytes.Buffer
+	// step: construct the options
+	var options dockerapi.CopyFromContainerOptions
+	options.OutputStream = bufio.NewWriter(&buffer)
+	options.Container = containerID
+	options.Resource = filename
+
+	// step: extract the file
+	err := r.client.CopyFromContainer(options)
+	if err != nil {
+		glog.Errorf("Failed to copy the file: %s from the container: %s, error: %s",
+			filename, containerID[:12], err)
+		return "", err
+	}
+	return buffer.String(), nil
 }
 
 func (r *DockerService) Environment(containerId string) (map[string]string, error) {
