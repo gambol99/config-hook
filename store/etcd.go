@@ -61,7 +61,7 @@ const (
 func NewEtcdStoreClient(location *url.URL, channel NodeUpdateChannel) (Store, error) {
 	/* step: create the client */
 	store := new(EtcdStoreClient)
-	store.hosts = store.ParseHostsURL(location)
+	store.hosts = store.parseHostsURL(location)
 	store.stop_channel = make(chan bool)
 	store.update_channel = channel
 	store.base_key = "/"
@@ -83,7 +83,7 @@ func NewEtcdStoreClient(location *url.URL, channel NodeUpdateChannel) (Store, er
 	return store, nil
 }
 
-func (r *EtcdStoreClient) ProcessEvents() {
+func (r *EtcdStoreClient) processEvents() {
 	glog.V(VERBOSE_LEVEL).Infof("Starting the event watcher for the etcd clinet, channel: %v", r.update_channel)
 	/* the kill switch for the goroutine */
 	kill_off := false
@@ -124,13 +124,13 @@ func (r *EtcdStoreClient) ProcessEvents() {
 			wait_index = response.Node.ModifiedIndex + 1
 
 			/* step: cool - we have a notification - lets check if this key is being watched */
-			go r.ProcessNodeChange(response)
+			go r.processNodeChange(response)
 		}
 		glog.V(VERBOSE_LEVEL).Infof("Exitted the k/v watcher routine, channel: %v", r.update_channel)
 	}()
 }
 
-func (r *EtcdStoreClient) ProcessNodeChange(response *etcd.Response) {
+func (r *EtcdStoreClient) processNodeChange(response *etcd.Response) {
 	/* step: are there any keys being watched */
 	if len(r.watchedKeys) <= 0 {
 		return
@@ -162,7 +162,7 @@ func (r *EtcdStoreClient) ProcessNodeChange(response *etcd.Response) {
 	glog.V(VERBOSE_LEVEL).Infof("The key: %s is presently not being watched, we can ignore for now", path)
 }
 
-func (r EtcdStoreClient) ParseHostsURL(location *url.URL) []string {
+func (r EtcdStoreClient) parseHostsURL(location *url.URL) []string {
 	hosts := make([]string, 0)
 	/* step: determine the protocol */
 	protocol := "http"
@@ -192,7 +192,7 @@ func (r *EtcdStoreClient) Watch(key string) {
 	}
 }
 
-func (r *EtcdStoreClient) ValidateKey(key string) string {
+func (r *EtcdStoreClient) validateKey(key string) string {
 	/* step: if it doesnt start with a / - add it */
 	if !strings.HasPrefix(key, "/") {
 		key = "/" + key
@@ -205,18 +205,18 @@ func (r *EtcdStoreClient) ValidateKey(key string) string {
 }
 
 func (r *EtcdStoreClient) Get(key string) (*Node, error) {
-	lookup := r.ValidateKey(key)
+	lookup := r.validateKey(key)
 	/* step: lets check the cache */
-	if response, err := r.GetRaw(lookup); err != nil {
+	if response, err := r.getRaw(lookup); err != nil {
 		glog.Errorf("Failed to get the key: %s, error: %s", lookup, err)
 		return nil, err
 	} else {
-		return r.CreateNode(response.Node), nil
+		return r.createNode(response.Node), nil
 	}
 }
 
-func (r *EtcdStoreClient) GetRaw(key string) (*etcd.Response, error) {
-	glog.V(VERBOSE_LEVEL).Infof("GetRaw() key: %s", key)
+func (r *EtcdStoreClient) getRaw(key string) (*etcd.Response, error) {
+	glog.V(VERBOSE_LEVEL).Infof("getRaw() key: %s", key)
 	response, err := r.client.Get(key, false, true)
 	if err != nil {
 		glog.Errorf("Failed to get the key: %s, error: %s", key, err)
@@ -254,9 +254,9 @@ func (r *EtcdStoreClient) RemovePath(path string) error {
 }
 
 func (r *EtcdStoreClient) List(path string) ([]*Node, error) {
-	key := r.ValidateKey(path)
+	key := r.validateKey(path)
 	glog.V(VERBOSE_LEVEL).Infof("List() path: %s", key)
-	if response, err := r.GetRaw(path); err != nil {
+	if response, err := r.getRaw(path); err != nil {
 		glog.Errorf("List() failed to get path: %s, error: %s", key, err)
 		return nil, err
 	} else {
@@ -266,7 +266,7 @@ func (r *EtcdStoreClient) List(path string) ([]*Node, error) {
 			return nil, InvalidDirectoryErr
 		}
 		for _, item := range response.Node.Nodes {
-			list = append(list, r.CreateNode(item))
+			list = append(list, r.createNode(item))
 		}
 		return list, nil
 	}
@@ -288,7 +288,7 @@ func (e *EtcdStoreClient) Paths(path string, paths *[]string) ([]string, error) 
 	return *paths, nil
 }
 
-func (r *EtcdStoreClient) CreateNode(response *etcd.Node) *Node {
+func (r *EtcdStoreClient) createNode(response *etcd.Node) *Node {
 	node := &Node{}
 	node.Path = response.Key
 	if response.Dir == false {
