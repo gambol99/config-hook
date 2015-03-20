@@ -29,6 +29,8 @@ type Store interface {
 	Paths(path string, paths *[]string) ([]string, error)
 	/* watch for changes on a key */
 	Watch(key string)
+	/* remove a key from being watched */
+	Unwatch(key string)
 	/* Get a list of all the nodes under the path */
 	List(path string) ([]*Node, error)
 	/* set a key in the store */

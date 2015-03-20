@@ -64,6 +64,7 @@ func NewEtcdStoreClient(location *url.URL, channel NodeUpdateChannel) (Store, er
 	store.hosts = store.parseHostsURL(location)
 	store.stop_channel = make(chan bool)
 	store.update_channel = channel
+	store.watchedKeys = make(map[string]bool, 0)
 	store.base_key = "/"
 
 	glog.Infof("Creating a Etcd Agent for K/V Store, hosts: %s", store.hosts)
@@ -79,7 +80,8 @@ func NewEtcdStoreClient(location *url.URL, channel NodeUpdateChannel) (Store, er
 	} else {
 		store.client = etcd.NewClient(store.hosts)
 	}
-	/* step: are we using tls or not? */
+	// step: start processing events
+	store.processEvents()
 	return store, nil
 }
 
@@ -131,19 +133,19 @@ func (r *EtcdStoreClient) processEvents() {
 }
 
 func (r *EtcdStoreClient) processNodeChange(response *etcd.Response) {
-	/* step: are there any keys being watched */
+	// step: are there any keys being watched
 	if len(r.watchedKeys) <= 0 {
 		return
 	}
 	r.RLock()
 	defer r.RUnlock()
-	/* step: iterate the list and find out if our key is being watched */
+	// step: iterate the list and find out if our key is being watched
 	path := response.Node.Key
 	glog.V(VERBOSE_LEVEL).Infof("Checking if key: %s is being watched", path)
 	for watch_key, _ := range r.watchedKeys {
 		if strings.HasPrefix(path, watch_key) {
 			glog.V(VERBOSE_LEVEL).Infof("Sending notification of change on key: %s, channel: %v, event: %v", path, r.update_channel, response)
-			/* step: we create an event and send upstream */
+			// step: we create an event and send upstream
 			var event NodeChange
 			event.Node.Path = response.Node.Key
 			event.Node.Value = response.Node.Value
@@ -154,8 +156,10 @@ func (r *EtcdStoreClient) processNodeChange(response *etcd.Response) {
 			case "delete":
 				event.Operation = DELETED
 			}
-			/* step: send the event upstream via the channel */
-			r.update_channel <- event
+			// step: send the event upstream via the channel
+			go func() {
+				r.update_channel <- event
+			}()
 			return
 		}
 	}
@@ -183,13 +187,19 @@ func (r *EtcdStoreClient) Close() {
 func (r *EtcdStoreClient) Watch(key string) {
 	r.Lock()
 	defer r.Unlock()
-	/* step: we check if the key is being watched and if not add it */
+	// step: we check if the key is being watched and if not add it
 	if _, found := r.watchedKeys[key]; found {
 		glog.V(VERBOSE_LEVEL).Infof("Thy key: %s is already being wathed, skipping for now", key)
 	} else {
 		glog.V(VERBOSE_LEVEL).Infof("Adding a watch on the key: %s", key)
 		r.watchedKeys[key] = true
 	}
+}
+
+func (r *EtcdStoreClient) Unwatch(key string) {
+	r.Lock()
+	defer r.Unlock()
+	delete(r.watchedKeys, key)
 }
 
 func (r *EtcdStoreClient) validateKey(key string) string {

@@ -15,8 +15,14 @@ build:
 	go get github.com/tools/godep
 	godep go build -o stage/${NAME}
 
+unitdocker:
+	echo -e "*** Creating the unit testing docker\n"
+	cd tests && docker build -t ${AUTHOR}/${NAME}-unit .
+
 docker: build
+	echo -e "*** Creating the ${NAME} docker\n"
 	docker build -t ${AUTHOR}/${NAME} .
+	make unitdocker
 
 clean:
 	rm -f ./stage/${NAME}
@@ -27,6 +33,11 @@ changelog:
 test: build
 	go get github.com/stretchr/testify
 	godep go test -v ./...
+
+testit:
+	docker run --rm -v "${PWD}":/go/src/github.com/${AUTHOR}/${NAME} \
+  -w /go/src/github.com/${AUTHOR}/${NAME} -e GOOS=linux \
+  ${AUTHOR}/${NAME}-unit
 
 units:
 	docker run --rm -v "${PWD}":/go/src/github.com/${AUTHOR}/${NAME} \
