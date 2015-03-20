@@ -1,4 +1,5 @@
-[![Build Status](https://drone.io/github.com/gambol99/config-hook/status.png)](https://drone.io/github.com/gambol99/config-hook/latest)
+[![Build Status](https://travis-ci.org/gambol99/config-hook.svg?branch=master)](https://travis-ci.org/gambol99/config-hook)
+[![GoDoc](http://godoc.org/github.com/gambol99/config-hook?status.png)](http://godoc.org/github.com/gambol99/config-hook)
 
 ### **Config Hook**
 -----
@@ -7,7 +8,6 @@ The Config Hook service is a agent service that works together with [config-fs](
 
 #### **Configuration**
 ---
-
 
 	[jest@starfury config-hook]$ stage/config-hook --help
 	Usage of stage/config-hook:
