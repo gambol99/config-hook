@@ -20,8 +20,10 @@ failed() {
 
 say "Starting Etcd Service"
 cd /opt/etcd-${ETCD_VERSION}-linux-amd64 || failed "Unable to move into etcd directory"
-./etcd >/dev/null 2&>1 &
+./etcd &
 [ $? -ne 0 ] && failed "Unable to start the Etcd Service"
+
+sleep 2
 
 cd $WORKDIR
 say "Running Unit tests"
