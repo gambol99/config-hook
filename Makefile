@@ -7,8 +7,12 @@
 NAME=config-hook
 AUTHOR=gambol99
 VERSION=$(shell awk '/const Version/ { print $$4 }' version.go | sed 's/"//g')
+PWD=$(shell pwd)
+
+.PHONY: build release changelog clean docker test units
 
 build:
+	go get github.com/tools/godep
 	godep go build -o stage/${NAME}
 
 docker: build
@@ -16,20 +20,17 @@ docker: build
 
 clean:
 	rm -f ./stage/${NAME}
-	go clean
 
 changelog:
 	git log $(shell git tag | tail -n1)..HEAD --no-merges --format=%B > changelog
 
-all: clean changelog build docker
-
-test:
+test: build
 	go get github.com/stretchr/testify
-	for i in hook store; do
-		cd $i
-		godep go test
-		cd ..
-	done
+	godep go test -v ./...
+
+units:
+	docker run --rm -v "${PWD}":/go/src/github.com/${AUTHOR}/${NAME} \
+  -w /go/src/github.com/${AUTHOR}/${NAME} -e GOOS=linux golang:1.3.3 /bin/bash tests/unit_testing.sh
 
 release:
 	rm -rf release
@@ -40,5 +41,4 @@ release:
 	cp changelog release/changelog
 	rm release/$(NAME)
 
-.PHONY: build release changelog
 

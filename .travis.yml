@@ -1,0 +1,11 @@
+#
+#   Author: Rohith (gambol99@gmail.com)
+#   Date: 2015-03-20 14:55:49 +0000 (Fri, 20 Mar 2015)
+#
+#  vim:ts=2:sw=2:et
+#
+language: go
+go:
+  - 1.3.3
+install:
+  - /bin/bash tests/unit_testing.sh

@@ -172,7 +172,7 @@ func (r *ConfigHookService) processContainerCreation(containerId string) {
 	r.hooks[containerId] = hooks
 
 	// step: process the hook files
-	for _, x := range hooks.files {
+	for _, _ = range hooks.files {
 
 	}
 }

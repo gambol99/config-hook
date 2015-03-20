@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/gambol99/config-hook/config"
+
 	"github.com/golang/glog"
 )
 
@@ -110,15 +111,15 @@ func (r Hooks) HasHooks() bool {
 
 func (r Hooks) Validate() error {
 	// step: validate the hook files
-	for id, x := range r.files {
-		if err := r.Valid(); err != nil {
+	for id, _ := range r.files {
+		if err := r.Validate(); err != nil {
 			glog.Errorf("invalid hook file config, error: %s", err)
 			delete(r.files, id)
 		}
 	}
 	// step: validate the keys
-	for id, x := range r.keys {
-		if err := r.Valid(); err != nil {
+	for id, _ := range r.keys {
+		if err := r.Validate(); err != nil {
 			glog.Errorf("invalid hook keys config, error: %s", err)
 			delete(r.keys, id)
 		}
@@ -128,7 +129,7 @@ func (r Hooks) Validate() error {
 
 func (r *Hooks) findMatches(src string, reg *regexp.Regexp) ([]string, int) {
 	list := make([]string, 0)
-	for index, element := range (*reg).FindStringSubmatch(src) {
+	for index, element := range reg.FindStringSubmatch(src) {
 		if index == 0 {
 			continue
 		}

@@ -46,8 +46,5 @@ func (r HookKeys) Valid() (bool, error) {
 	if r.File == "" {
 		return false, errors.New("the hook config does not contain a file")
 	}
-	if r.Key == "" {
-		return false, errors.New("the hook config does not contain a key")
-	}
 	return true, nil
 }

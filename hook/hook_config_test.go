@@ -44,6 +44,11 @@ func TestKeys(t *testing.T) {
 }
 
 func TestFindMatches(t *testing.T) {
+	hook_file_regex = regexp.MustCompile(fmt.Sprintf("^%s%s_([[:alpha:]]+)[$_]?(KEY|CHECK|EXEC|FLAGS)?",
+		"CONFIG_HOOK_", HOOK_FILE))
+	hook_keys_regex = regexp.MustCompile(fmt.Sprintf("^%s%s_([[:alpha:]]+)$",
+		"CONFIG_HOOK_", HOOK_KEYS))
+
 	src := "CONFIG_HOOK_FILE_NAME"
 	c := NewHooksConfig()
 	assert.NotNil(t, c)

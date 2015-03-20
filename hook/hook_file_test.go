@@ -40,12 +40,11 @@ func TestSet(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	config := NewHookFile("test")
-	valid, err := config.Validate()
+	err := config.Valid()
 	assert.NotNil(t, err, "the error should have been raised")
-	assert.Equal(t, valid, false, "the valid should have been false")
+
 	config.File = "/usr/hello"
 	config.Key = "/usr/key"
-	valid, err = config.Validate()
+	err = config.Valid()
 	assert.Nil(t, err, "the error should not have been raised")
-	assert.Equal(t, valid, true, "the valid flag should have been true")
 }

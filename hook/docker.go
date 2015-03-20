@@ -121,6 +121,7 @@ func (r *DockerService) Watch(channel DockerEvent, event string) {
 
 func (r *DockerService) HasFile(containerID, filename string) (bool, error) {
 
+	return false, nil
 }
 
 func (r *DockerService) GetFile(containerID, filename string) (string, error) {
