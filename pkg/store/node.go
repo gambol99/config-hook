@@ -17,8 +17,6 @@ import (
 	"fmt"
 )
 
-type Action int
-
 const (
 	UNKNOWN = 0
 	CHANGED = 1
@@ -26,20 +24,20 @@ const (
 )
 
 type NodeChange struct {
-	/* The node in question */
+	// The node in question
 	Node Node
-	/* The event which has occurred */
-	Operation Action
+	// The event which has occurred
+	Operation int
 }
 
 type NodeUpdateChannel chan NodeChange
 
 type Node struct {
-	/* the path for this key */
+	// the path for this key
 	Path string
-	/* the value of the key */
+	// the value of the key
 	Value string
-	/* the type of node it is, directory or file */
+	// the type of node it is, directory or file
 	Directory bool
 }
 

@@ -84,17 +84,14 @@ func NewEtcdStoreClient(location *url.URL, channel NodeUpdateChannel) (Store, er
 }
 
 func (r *EtcdStoreClient) ProcessEvents() {
-	glog.V(VERBOSE_LEVEL).Infof("Starting the event watcher for the etcd clinet, channel: %v", r.update_channel)
 	/* the kill switch for the goroutine */
 	kill_off := false
 
 	/* routine: waits on the shutdown signal for the client and flicks the kill switch */
 	go func() {
-		glog.V(VERBOSE_LEVEL).Infof("Waiting on a shutdown signal from consumer, channel: %v", r.update_channel)
 		/* step: wait for the shutdown signal */
 		<-r.stop_channel
 		/* @perhaps : we could speed up the take down by using a stop channel on the watch? */
-		glog.V(VERBOSE_LEVEL).Infof("Flicking the kill switch for watcher, channel: %v", r.update_channel)
 		kill_off = true
 	}()
 
@@ -126,7 +123,6 @@ func (r *EtcdStoreClient) ProcessEvents() {
 			/* step: cool - we have a notification - lets check if this key is being watched */
 			go r.ProcessNodeChange(response)
 		}
-		glog.V(VERBOSE_LEVEL).Infof("Exitted the k/v watcher routine, channel: %v", r.update_channel)
 	}()
 }
 
@@ -139,10 +135,8 @@ func (r *EtcdStoreClient) ProcessNodeChange(response *etcd.Response) {
 	defer r.RUnlock()
 	/* step: iterate the list and find out if our key is being watched */
 	path := response.Node.Key
-	glog.V(VERBOSE_LEVEL).Infof("Checking if key: %s is being watched", path)
 	for watch_key, _ := range r.watchedKeys {
 		if strings.HasPrefix(path, watch_key) {
-			glog.V(VERBOSE_LEVEL).Infof("Sending notification of change on key: %s, channel: %v, event: %v", path, r.update_channel, response)
 			/* step: we create an event and send upstream */
 			var event NodeChange
 			event.Node.Path = response.Node.Key
@@ -159,7 +153,6 @@ func (r *EtcdStoreClient) ProcessNodeChange(response *etcd.Response) {
 			return
 		}
 	}
-	glog.V(VERBOSE_LEVEL).Infof("The key: %s is presently not being watched, we can ignore for now", path)
 }
 
 func (r EtcdStoreClient) ParseHostsURL(location *url.URL) []string {
@@ -184,10 +177,7 @@ func (r *EtcdStoreClient) Watch(key string) {
 	r.Lock()
 	defer r.Unlock()
 	/* step: we check if the key is being watched and if not add it */
-	if _, found := r.watchedKeys[key]; found {
-		glog.V(VERBOSE_LEVEL).Infof("Thy key: %s is already being wathed, skipping for now", key)
-	} else {
-		glog.V(VERBOSE_LEVEL).Infof("Adding a watch on the key: %s", key)
+	if _, found := r.watchedKeys[key]; !found {
 		r.watchedKeys[key] = true
 	}
 }
@@ -211,12 +201,11 @@ func (r *EtcdStoreClient) Get(key string) (*Node, error) {
 		glog.Errorf("Failed to get the key: %s, error: %s", lookup, err)
 		return nil, err
 	} else {
-		return r.CreateNode(response.Node), nil
+		return r.createNode(response.Node), nil
 	}
 }
 
 func (r *EtcdStoreClient) GetRaw(key string) (*etcd.Response, error) {
-	glog.V(VERBOSE_LEVEL).Infof("GetRaw() key: %s", key)
 	response, err := r.client.Get(key, false, true)
 	if err != nil {
 		glog.Errorf("Failed to get the key: %s, error: %s", key, err)
@@ -226,7 +215,6 @@ func (r *EtcdStoreClient) GetRaw(key string) (*etcd.Response, error) {
 }
 
 func (r *EtcdStoreClient) Set(key string, value string) error {
-	glog.V(VERBOSE_LEVEL).Infof("Set() key: %s, value: %s", key, value)
 	_, err := r.client.Set(key, value, uint64(0))
 	if err != nil {
 		glog.Errorf("Failed to set the key: %s, error: %s", key, err)
@@ -236,18 +224,14 @@ func (r *EtcdStoreClient) Set(key string, value string) error {
 }
 
 func (r *EtcdStoreClient) Delete(key string) error {
-	glog.V(VERBOSE_LEVEL).Infof("Delete() deleting the key: %s", key)
 	if _, err := r.client.Delete(key, false); err != nil {
-		glog.Errorf("Delete() failed to delete key: %s, error: %s", key, err)
 		return err
 	}
 	return nil
 }
 
 func (r *EtcdStoreClient) RemovePath(path string) error {
-	glog.V(VERBOSE_LEVEL).Infof("RemovePath() deleting the path: %s", path)
 	if _, err := r.client.Delete(path, true); err != nil {
-		glog.Errorf("RemovePath() failed to delete key: %s, error: %s", path, err)
 		return err
 	}
 	return nil
@@ -255,7 +239,6 @@ func (r *EtcdStoreClient) RemovePath(path string) error {
 
 func (r *EtcdStoreClient) List(path string) ([]*Node, error) {
 	key := r.ValidateKey(path)
-	glog.V(VERBOSE_LEVEL).Infof("List() path: %s", key)
 	if response, err := r.GetRaw(path); err != nil {
 		glog.Errorf("List() failed to get path: %s, error: %s", key, err)
 		return nil, err
@@ -266,7 +249,7 @@ func (r *EtcdStoreClient) List(path string) ([]*Node, error) {
 			return nil, InvalidDirectoryErr
 		}
 		for _, item := range response.Node.Nodes {
-			list = append(list, r.CreateNode(item))
+			list = append(list, r.createNode(item))
 		}
 		return list, nil
 	}
@@ -281,14 +264,13 @@ func (e *EtcdStoreClient) Paths(path string, paths *[]string) ([]string, error) 
 		if node.Dir {
 			e.Paths(node.Key, paths)
 		} else {
-			glog.Infof("Found service container: %s appending now", node.Key)
 			*paths = append(*paths, node.Key)
 		}
 	}
 	return *paths, nil
 }
 
-func (r *EtcdStoreClient) CreateNode(response *etcd.Node) *Node {
+func (r *EtcdStoreClient) createNode(response *etcd.Node) *Node {
 	node := &Node{}
 	node.Path = response.Key
 	if response.Dir == false {

@@ -7,8 +7,6 @@ The Config Hook service is a agent service that works together with [config-fs](
 
 #### **Configuration**
 ---
-
-
 	[jest@starfury config-hook]$ stage/config-hook --help
 	Usage of stage/config-hook:
 	  -docker="/var/run/docker.sock": the path to the docker socket file
@@ -97,3 +95,16 @@ The contents of the keys file is simple newline separated list of KEY=VALUE
 	KEY_TWO=VALUE_TWO
 	...
 
+docker run ...
+ -e HOOK_CONFIG="/etc/config-hook.conf"
+ -e HOOK_DISCOVERY_CONSUL="consul.example.com"
+ -e HOOK_TEMPLATE_HAPROXY="/etc/haproxy/haproxy.cfg
+
+
+ config-hook
+  -discovery="consul://consul.example.com" \
+  -discovery="marathon://core101:8080" \
+  -template "/etc/haproxy/haproxy.cfg.tmpl;/etc/haproxy/haproxy.cfg;service check;[OPTIONS,,,]}"
+  -template "[SRC];[DEST];[CHECK];[OPTIONS];"
+
+{{ service "consul" "frontend_http" }}

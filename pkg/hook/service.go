@@ -24,7 +24,7 @@ import (
 	"github.com/golang/glog"
 )
 
-type ConfigHook interface {
+type HookService interface {
 	// close down any resources
 	Close()
 }
@@ -54,7 +54,7 @@ var (
 	hook_file_prefix, hook_keys_prefix string
 )
 
-func NewConfigHook() (ConfigHook, error) {
+func NewConfigHook() (HookService, error) {
 
 	var err error
 	service := new(ConfigHookService)

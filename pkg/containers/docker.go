@@ -11,23 +11,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package hook
+package containers
 
 import (
-	"bufio"
-	"bytes"
-	"errors"
+	"sync"
 	"regexp"
 	"strings"
-	"sync"
+	"bufio"
+	"errors"
 
+	"github.com/gambol99/config-hook/utils"
 	"github.com/gambol99/config-hook/config"
 
-	dockerapi "github.com/gambol99/go-dockerclient"
+	dockerapi "github.com/fsouza/go-dockerclient"
 	"github.com/golang/glog"
 )
-
-type DockerEvent chan string
 
 const (
 	DOCKER_START   = "start"
@@ -35,20 +33,6 @@ const (
 	DOCKER_CREATED = "created"
 	DOCKER_DESTROY = "destroy"
 )
-
-// The interface to docker
-type DockerStore interface {
-	// retrieve the contents of a file in a container
-	GetFile(containerID, filename string) (string, error)
-	// Get a listing of containers
-	List() ([]string, error)
-	// watch for docker events
-	Watch(channel DockerEvent, event_type string)
-	// retrieve the environment variables for a container
-	Environment(containerID string) (map[string]string, error)
-	// Close down the resources
-	Close()
-}
 
 // The implementation of the above
 type DockerService struct {
@@ -59,30 +43,27 @@ type DockerService struct {
 	// the channel WE receive docker events on
 	updates chan *dockerapi.APIEvents
 	// a slice of those listening to creation events
-	listeners map[string][]DockerEvent
+	listeners map[string][]ContainerEvent
 	// the shutdown channel
 	shutdown ShutdownChannel
 }
 
-func NewDockerStore() (DockerStore, error) {
-	var err error
-	// step: we have to validate the docker socket
-	if valid, err := isValidSocket(config.Options.Docker_Socket); err != nil {
-		glog.Errorf("Unable to validate the docker socket, error: %s", err)
+func NewDockerContainers(cfg *config.DockerConfig) (ContainerStore, error) {
+	// step: validate the socket
+	if valid, err := utils.IsValidSocket(config.Options.Docker_Socket); err != nil {
 		return nil, err
 	} else if !valid {
 		return nil, errors.New("invalid docker socket, please check")
 	}
 	service := new(DockerService)
-	service.listeners = make(map[string][]DockerEvent, 0)
+	service.listeners = make(map[string][]ContainerEvent, 0)
 	service.shutdown = make(ShutdownChannel)
 	// step: create the docker socket
-	service.client, err = dockerapi.NewClient("unix://" + config.Options.Docker_Socket)
+	client, err := dockerapi.NewClient("unix://" + config.Options.Docker_Socket)
 	if err != nil {
-		glog.Errorf("Failed to connect to the docker service via docker, error: %s", err)
 		return nil, err
 	}
-
+	service.client = client
 	return service, nil
 }
 
@@ -95,21 +76,21 @@ func (r *DockerService) Close() {
 func (r *DockerService) List() ([]string, error) {
 	list := make([]string, 0)
 	containers, err := r.client.ListContainers(dockerapi.ListContainersOptions{})
-	if err != nil {
-		return nil, err
-	}
-	// iterate the containers
-	for _, container := range containers {
-		list = append(list, container.ID)
-	}
-	return list, nil
+if err != nil {
+return nil, err
+}
+// iterate the containers
+for _, container := range containers {
+list = append(list, container.ID)
+}
+return list, nil
 }
 
-func (r *DockerService) Watch(channel DockerEvent, event string) {
+func (r *DockerService) Watch(channel ContainerEvent, event string) {
 	r.Lock()
 	defer r.Unlock()
 	if r.listeners[event] == nil {
-		r.listeners[event] = make([]DockerEvent, 0)
+		r.listeners[event] = make([]ContainerEvent, 0)
 	}
 	r.listeners[event] = append(r.listeners[event], channel)
 	r.Once.Do(func() {

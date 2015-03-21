@@ -21,12 +21,12 @@ import (
 	"strings"
 
 	"github.com/gambol99/config-hook/config"
+
 	"github.com/golang/glog"
 )
 
 func NewHooksConfig() *Hooks {
 	return &Hooks{
-		keys:  make(map[string]*HookKeys, 0),
 		files: make(map[string]*HookFile, 0),
 	}
 }
@@ -40,16 +40,12 @@ type HookParser interface {
 	HasHooks() bool
 	// retrieve the files
 	Files(name string) *HookFile
-	// retrieve the keys
-	Keys(name string) *HookKeys
 	// validate the hooks
 	Validate() error
 }
 
 type Hooks struct {
 	HookParser
-	// map of all the hook keys
-	keys map[string]*HookKeys
 	// map of all the hook files
 	files map[string]*HookFile
 }
@@ -90,15 +86,6 @@ func (r *Hooks) Files(id string) *HookFile {
 		r.files[id] = file
 	}
 	return file
-}
-
-func (r *Hooks) Keys(id string) *HookKeys {
-	keys, found := r.keys[id]
-	if !found {
-		keys = NewHookKeys(id)
-		r.keys[id] = keys
-	}
-	return keys
 }
 
 func (r Hooks) HasHooks() bool {

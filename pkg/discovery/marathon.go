@@ -11,25 +11,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package hook
+package discovery
 
-import (
-	"os"
-
-	"errors"
-)
-
-type ShutdownChannel chan bool
-
-func isValidSocket(filename string) (bool, error) {
-	// step: check the docker exists
-	mode, err := os.Stat(filename)
-	if err != nil {
-		return false, err
-	}
-	// step: is it socket?
-	if mode.Mode()&os.ModeSocket == 0 {
-		return false, errors.New("the file: " + filename + " is not a socket")
-	}
-	return true, nil
-}
+func NewMarathonAgent(cfg *DiscoveryC)
