@@ -11,9 +11,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package meta
 
 const (
 	VERSION = "0.0.0"
-	AUTHOR  = "Rohith <gambol99@gmail.com>"
+	AUTHOR  = "Rohith"
+	EMAIL   = "gambol99@gmail.com"
 )

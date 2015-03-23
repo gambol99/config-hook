@@ -21,8 +21,6 @@ clean:
 changelog:
 	git log $(shell git tag | tail -n1)..HEAD --no-merges --format=%B > changelog
 
-all: clean changelog build docker
-
 test:
 	go test -v ./...
 

@@ -13,6 +13,37 @@ limitations under the License.
 
 package main
 
-func main() {
+import (
+	"fmt"
+	"os"
 
+	"github.com/gambol99/config-hook/pkg/cmd"
+
+	"github.com/alecthomas/kingpin"
+)
+
+func main() {
+	factory := cmd.NewFactory(&cmd.Application{
+		Name: "cfgctl",
+		Usage: "",
+		Version: "0.0.0",
+	})
+
+	factory.Flag("config", "the path to a configuration file").Short('c').File()
+	factory.Flag("test", "a test flag").String()
+
+	factory.Command(&cmd.FactoryCommand{
+		Name: "render",
+		Usage: "usage for the render",
+		Setup: func(c *kingpin.CmdClause) error {
+			c.Flag("template", "add a template to the required resources").Strings()
+			c.Flag("store", "a store provider to add the resources").Short('s').Strings()
+			return nil
+		},
+		Run: func(c *kingpin.CmdClause) error {
+			fmt.Println("Running the command")
+			return nil
+		},
+	})
+	factory.Parse(os.Args)
 }
