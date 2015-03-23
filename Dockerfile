@@ -7,8 +7,13 @@
 FROM progrium/busybox
 MAINTAINER Rohith <gambol99@gmail.com>
 
-ADD stage/config-hook /bin/config-hook
-ADD stage/startup.sh /startup.sh
-RUN chmod +x /bin/config-hook && chmod +x /startup.sh
+ADD bin/cfgctl /bin/cfgctl
+ADD bin/cfhook /bin/cfgctl
 
-ENTRYPOINT [ "/startup.sh" ]
+RUN chmod +x /bin/cfgctl && \
+    chmod +x /bin/cfhook && \
+    mkdir -p /data/config
+
+VOLUME "/data/config"
+
+ENTRYPOINT [ "/bin/cfgctl" ]

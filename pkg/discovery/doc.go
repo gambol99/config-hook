@@ -13,6 +13,12 @@ limitations under the License.
 
 package discovery
 
+import "errors"
+
+var (
+	ErrInvalidLocation = errors.New("invalid location specifier")
+)
+
 // The channel used to indicated when changes has occurred on a service
 type ServiceEventChannel chan Service
 
@@ -21,11 +27,13 @@ type DiscoveryAgent interface {
 	// Shutdown the discovery agent
 	Close() error
 	// Query the service for a list of endpoints
-	Endpoints(service string, args...string) ([]*Endpoint, error)
+	Endpoints(service string, args ...string) ([]*Endpoint, error)
 	// Query for a list of services
-	Services(query string, args...string) ([]*Service, error)
+	Services(query string, args ...string) ([]*Service, error)
 	// Watch a service and fire back to use when changes occur
-	Watch(service *Service, updates ServiceEventChannel) error
+	Watch(service *Service) (ServiceEventChannel, error)
+	// Remove a watch on a service
+	UnWatch(service *Service)
 }
 
 // The configuration passed to the discovery agent
@@ -35,11 +43,3 @@ type AgentConfig struct {
 	// the configuration passed to the agent
 	Config map[string]string
 }
-
-func (r AgentConfig) Get(name, dft string) string {
-	if item, found := r.Config[name]; found {
-		return item
-	}
-	return dft
-}
-

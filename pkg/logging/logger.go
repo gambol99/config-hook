@@ -34,25 +34,24 @@ func NewDefaultLogger(cfg *config.LoggingConfig) (Logger, error) {
 
 func DefaultLogging() *config.LoggingConfig {
 	return &config.LoggingConfig{
-		SyslogEnabled: false,
+		SyslogEnabled:  false,
 		SyslogFacility: "local5",
-		LogLevel: "info",
+		LogLevel:       "info",
 	}
 }
 
-func (r DefaultLogger) Info(message string, args...interface {}) {
+func (r DefaultLogger) Info(message string, args ...interface{}) {
 	r.logger.Printf("[info]  %s", message, args)
 }
 
-func (r DefaultLogger) Error(message string, args...interface {}) {
+func (r DefaultLogger) Error(message string, args ...interface{}) {
 	r.logger.Printf("[error] %s", message, args)
 }
 
-func (r DefaultLogger) Warn(message string, args...interface {}) {
+func (r DefaultLogger) Warn(message string, args ...interface{}) {
 	r.logger.Printf("[warn]  %s", message, args)
 }
 
-func (r DefaultLogger) Debug(message string, args...interface {}) {
+func (r DefaultLogger) Debug(message string, args ...interface{}) {
 	r.logger.Printf("[debug] %s", message, args)
 }
-

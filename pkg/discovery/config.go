@@ -11,10 +11,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package api
+package discovery
 
-import ()
-
-// The Rest API service
-type API interface {
+func (r AgentConfig) Get(name, dft string) string {
+	if item, found := r.Config[name]; found {
+		return item
+	}
+	return dft
 }

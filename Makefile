@@ -9,14 +9,14 @@ AUTHOR=gambol99
 VERSION=$(shell awk '/const Version/ { print $$4 }' version.go | sed 's/"//g')
 
 build:
-	godep go build -o stage/${NAME}
+	(cd cmd/cfgctl && go get && go build -o ../../bin/cfgctl)
+	(cd cmd/cfhook && go get && go build -o ../../bin/cfhook)
 
 docker: build
 	docker build -t ${AUTHOR}/${NAME} .
 
 clean:
-	rm -f ./stage/${NAME}
-	go clean
+	rm -f ./bin/*
 
 changelog:
 	git log $(shell git tag | tail -n1)..HEAD --no-merges --format=%B > changelog
@@ -24,12 +24,7 @@ changelog:
 all: clean changelog build docker
 
 test:
-	go get github.com/stretchr/testify
-	for i in hook store; do
-		cd $i
-		godep go test
-		cd ..
-	done
+	go test -v ./...
 
 release:
 	rm -rf release

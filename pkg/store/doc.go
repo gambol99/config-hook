@@ -30,12 +30,12 @@ type Store interface {
 	Set(key string, value string) error
 	// delete a key from the store
 	Delete(key string) error
-	// recursively delete a path */
+	// recursively delete a path
 	RemoveAll(path string) error
 	/// release all the resources
 	Close()
 }
 
 var (
-	InvalidUrlErr       = errors.New("Invalid URI error, please check backend url")
+	InvalidUrlErr = errors.New("Invalid URI error, please check backend url")
 )

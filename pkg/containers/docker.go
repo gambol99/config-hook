@@ -14,14 +14,14 @@ limitations under the License.
 package containers
 
 import (
-	"sync"
-	"regexp"
-	"strings"
 	"bufio"
 	"errors"
+	"regexp"
+	"strings"
+	"sync"
 
-	"github.com/gambol99/config-hook/utils"
-	"github.com/gambol99/config-hook/config"
+	"github.com/gambol99/config-hook/pkg/config"
+	"github.com/gambol99/config-hook/pkg/utils"
 
 	dockerapi "github.com/fsouza/go-dockerclient"
 	"github.com/golang/glog"
@@ -45,12 +45,12 @@ type DockerService struct {
 	// a slice of those listening to creation events
 	listeners map[string][]ContainerEvent
 	// the shutdown channel
-	shutdown ShutdownChannel
+	shutdown utils.ShutdownChannel
 }
 
 func NewDockerContainers(cfg *config.DockerConfig) (ContainerStore, error) {
 	// step: validate the socket
-	if valid, err := utils.IsValidSocket(config.Options.Docker_Socket); err != nil {
+	if valid, err := utils.IsValidSocket(cfg.Socket); err != nil {
 		return nil, err
 	} else if !valid {
 		return nil, errors.New("invalid docker socket, please check")
@@ -59,7 +59,7 @@ func NewDockerContainers(cfg *config.DockerConfig) (ContainerStore, error) {
 	service.listeners = make(map[string][]ContainerEvent, 0)
 	service.shutdown = make(ShutdownChannel)
 	// step: create the docker socket
-	client, err := dockerapi.NewClient("unix://" + config.Options.Docker_Socket)
+	client, err := dockerapi.NewClient("unix://" + cfg.Socket)
 	if err != nil {
 		return nil, err
 	}
@@ -76,14 +76,14 @@ func (r *DockerService) Close() {
 func (r *DockerService) List() ([]string, error) {
 	list := make([]string, 0)
 	containers, err := r.client.ListContainers(dockerapi.ListContainersOptions{})
-if err != nil {
-return nil, err
-}
-// iterate the containers
-for _, container := range containers {
-list = append(list, container.ID)
-}
-return list, nil
+	if err != nil {
+		return nil, err
+	}
+	// iterate the containers
+	for _, container := range containers {
+		list = append(list, container.ID)
+	}
+	return list, nil
 }
 
 func (r *DockerService) Watch(channel ContainerEvent, event string) {

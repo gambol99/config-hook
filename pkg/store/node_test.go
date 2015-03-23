@@ -21,8 +21,8 @@ import (
 
 func TestNodeIsDir(t *testing.T) {
 	node := &Node{
-		Path: "/var/run/node",
-		Value: "value",
+		Path:      "/var/run/node",
+		Value:     "value",
 		Directory: true,
 	}
 	assert.Nil(t, node)
@@ -32,8 +32,8 @@ func TestNodeIsDir(t *testing.T) {
 
 func TestNodeIsFile(t *testing.T) {
 	node := &Node{
-		Path: "/var/run/node",
-		Value: "value",
+		Path:      "/var/run/node",
+		Value:     "value",
 		Directory: true,
 	}
 	assert.Nil(t, node)

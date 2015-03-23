@@ -13,7 +13,6 @@ limitations under the License.
 
 package containers
 
-
 type ContainerEvent chan string
 
 // The interface to docker

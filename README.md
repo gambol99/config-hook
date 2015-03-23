@@ -95,16 +95,19 @@ The contents of the keys file is simple newline separated list of KEY=VALUE
 	KEY_TWO=VALUE_TWO
 	...
 
-docker run ...
- -e HOOK_CONFIG="/etc/config-hook.conf"
- -e HOOK_DISCOVERY_CONSUL="consul.example.com"
- -e HOOK_TEMPLATE_HAPROXY="/etc/haproxy/haproxy.cfg
+    docker run ...
+      -e HOOK_CONFIG="/etc/config-hook.conf"
+      -e HOOK_DISCOVERY_CONSUL="consul.example.com"
+      -e HOOK_TEMPLATE_HAPROXY="/etc/haproxy/haproxy.cfg"
 
+    cfgctl render
+      -store="consul://consul.example.com:8500" \
+      -discovery="consul://consul.example.com" \
+      -discovery="marathon://core101:8080" \
+      -template "/etc/haproxy/haproxy.cfg.tmpl;/etc/haproxy/haproxy.cfg;service check;[OPTIONS,,,]}"
+      -template "[SRC];[DEST];[CHECK];[OPTIONS];"
 
- config-hook
-  -discovery="consul://consul.example.com" \
-  -discovery="marathon://core101:8080" \
-  -template "/etc/haproxy/haproxy.cfg.tmpl;/etc/haproxy/haproxy.cfg;service check;[OPTIONS,,,]}"
-  -template "[SRC];[DEST];[CHECK];[OPTIONS];"
+    cfgctl server
+      -config="/etc/config-hook/hook.conf"
 
-{{ service "consul" "frontend_http" }}
+    {{ service "consul" "frontend_http" }}

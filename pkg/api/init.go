@@ -14,14 +14,10 @@ limitations under the License.
 package api
 
 import (
-
 	"github.com/gambol99/config-hook/hook"
-
 )
 
 func New(svc hook.HookService) (API, error) {
 
-
 	return nil, nil
 }
-

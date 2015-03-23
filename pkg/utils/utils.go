@@ -18,7 +18,22 @@ import (
 
 	"errors"
 	"io/ioutil"
+	"sync/atomic"
 )
+
+type AtomicSwitch int64
+
+func (p *AtomicSwitch) IsSwitched() bool {
+	return atomic.LoadInt64((*int64)(p)) != 0
+}
+
+func (p *AtomicSwitch) SwitchOn() {
+	atomic.StoreInt64((*int64)(p), 1)
+}
+
+func (p *AtomicSwitch) SwitchedOff() {
+	atomic.StoreInt64((*int64)(p), 0)
+}
 
 type ShutdownChannel chan bool
 
@@ -42,11 +57,30 @@ func IsValidSocket(filename string) (bool, error) {
 func FileExists(filename string) (bool, error) {
 	if _, err := os.Stat(filename); err != nil {
 		if os.IsNotExist(err) {
-			return false, errors.New("The filename: "+filename+" does not exist")
+			return false, errors.New("The filename: " + filename + " does not exist")
 		}
 		return false, err
 	}
 	return true, nil
+}
+
+func Forever(method func() error, ch ShutdownChannel) {
+	var kill_switch AtomicSwitch
+
+	// wait for the kill switch
+	go func() {
+		<-ch
+		kill_switch.SwitchOn()
+	}()
+
+	// keep calling the method
+	go func() {
+		for !kill_switch.IsSwitched() {
+			if err := method(); err != nil {
+
+			}
+		}
+	}()
 }
 
 // Read in the content of a file
@@ -57,7 +91,7 @@ func ReadFile(filename string) (string, error) {
 		return "", err
 	}
 	if !found {
-		return "", errors.New("the file: "+filename+" does not exist, please check")
+		return "", errors.New("the file: " + filename + " does not exist, please check")
 	}
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -67,7 +101,7 @@ func ReadFile(filename string) (string, error) {
 }
 
 // Reads in the environment variables and constructs a map
-func GetEnvironment() (map[string]string) {
+func GetEnvironment() map[string]string {
 	env := make(map[string]string, 0)
 	for _, name := range os.Environ() {
 		env[name] = os.Getenv(name)
